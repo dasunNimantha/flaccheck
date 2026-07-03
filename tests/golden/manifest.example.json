@@ -1,0 +1,4 @@
+[
+  {"path": "datasets/output/example_genuine.flac", "label": "genuine"},
+  {"path": "datasets/output/example_mp3_128k.flac", "label": "transcoded"}
+]

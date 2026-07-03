@@ -1,0 +1,32 @@
+[package]
+name = "lossless-scan"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Research-backed lossless audio authenticity CLI"
+default-run = "lossless-scan"
+
+[lib]
+name = "lossless_scan"
+path = "src/lib.rs"
+
+[[bin]]
+name = "lossless-scan"
+path = "src/main.rs"
+
+[features]
+default = []
+ml = ["lossless-scan-ml/onnx"]
+
+[dependencies]
+lossless-scan-core = { path = "../lossless-scan-core" }
+lossless-scan-decode = { path = "../lossless-scan-decode" }
+lossless-scan-detectors = { path = "../lossless-scan-detectors" }
+lossless-scan-ml = { path = "../lossless-scan-ml" }
+clap = { workspace = true }
+indicatif = { workspace = true }
+rayon = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+minijinja = { workspace = true }
+thiserror = { workspace = true }

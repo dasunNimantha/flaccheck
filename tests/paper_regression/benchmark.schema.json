@@ -1,0 +1,10 @@
+{
+  "mode": "balanced",
+  "total": 0,
+  "precision_transcoded": 0.0,
+  "recall_transcoded": 0.0,
+  "precision_genuine": 0.0,
+  "recall_genuine": 0.0,
+  "inconclusive_rate": 0.0,
+  "per_label": {}
+}

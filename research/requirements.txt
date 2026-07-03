@@ -1,0 +1,4 @@
+numpy>=1.24
+torch>=2.0
+onnx>=1.14
+onnxscript>=0.1.0
