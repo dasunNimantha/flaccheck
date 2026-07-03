@@ -816,6 +816,7 @@ name = "lossless-scan-core"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "serde_json",
  "thiserror",
 ]
 
@@ -834,10 +835,12 @@ version = "0.1.0"
 dependencies = [
  "approx",
  "lossless-scan-core",
+ "lossless-scan-decode",
  "lossless-scan-testkit",
  "ndarray",
  "realfft",
  "rustfft",
+ "serde_json",
 ]
 
 [[package]]
@@ -854,6 +857,8 @@ name = "lossless-scan-testkit"
 version = "0.1.0"
 dependencies = [
  "lossless-scan-core",
+ "lossless-scan-decode",
+ "lossless-scan-detectors",
  "realfft",
  "rustfft",
  "serde",

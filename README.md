@@ -128,8 +128,10 @@ The workspace includes an in-memory labeled corpus (60+ synthetic cases) exercis
   Its confidence is intentionally shown as `—`.
 - High-bitrate transcodes (256 kbps CBR / V0) whose cutoff sits near 19–20 kHz are an
   inherently ambiguous zone and may read `SUSPICIOUS` rather than a hard verdict.
-- Tier 2 thresholds need calibration against real labeled data (see `datasets/`).
-- The MP3 PQMF detector is stubbed (see evidence `TODO` in source).
+- Tier 2 thresholds are calibrated via `lossless-scan-calibrate` against an ffmpeg
+  transcode matrix (`datasets/generate.sh`). Baked defaults target balanced recall.
+- MP3 PQMF and joint-stereo detectors are heuristic — require a lossy cliff or
+  corroborating quant evidence for high-confidence transcode verdicts.
 
 ## Research / ML training
 

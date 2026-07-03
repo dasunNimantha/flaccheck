@@ -1,5 +1,7 @@
 //! Orchestration configuration types.
 
+use crate::Thresholds;
+
 #[derive(Debug, Clone)]
 pub struct AnalysisConfig {
     pub mode: crate::ScanMode,
@@ -7,6 +9,7 @@ pub struct AnalysisConfig {
     pub window_count: usize,
     pub full_file: bool,
     pub ml_enabled: bool,
+    pub thresholds: Thresholds,
 }
 
 impl Default for AnalysisConfig {
@@ -17,6 +20,7 @@ impl Default for AnalysisConfig {
             window_count: 3,
             full_file: false,
             ml_enabled: false,
+            thresholds: Thresholds::default(),
         }
     }
 }
@@ -30,6 +34,7 @@ impl AnalysisConfig {
                 window_count: 2,
                 full_file: false,
                 ml_enabled: false,
+                thresholds: Thresholds::default(),
             },
             crate::ScanMode::Balanced => Self {
                 mode,
@@ -37,6 +42,7 @@ impl AnalysisConfig {
                 window_count: 3,
                 full_file: false,
                 ml_enabled: false,
+                thresholds: Thresholds::default(),
             },
             crate::ScanMode::Max => Self {
                 mode,
@@ -44,6 +50,7 @@ impl AnalysisConfig {
                 window_count: 5,
                 full_file: true,
                 ml_enabled: false,
+                thresholds: Thresholds::default(),
             },
         }
     }

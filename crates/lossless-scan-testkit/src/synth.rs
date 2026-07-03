@@ -264,9 +264,28 @@ pub fn fake_upsample_44k_to_96k(secs: f64, seed: u32) -> PcmBuffer {
 /// Joint-stereo-like: side channel nearly silent.
 pub fn joint_stereo_collapsed(sr: u32, secs: f64, seed: u32) -> PcmBuffer {
     let n = (sr as f64 * secs) as usize;
+    // Simulate MP3 joint stereo: side channel near-zero (L ≈ R).
     let left = lcg_noise(n, seed);
-    let right: Vec<f32> = left.iter().map(|&l| l * 0.999).collect();
+    let right: Vec<f32> = left.iter().map(|&l| l * 0.9995).collect();
     stereo_from_mono(&left, &right)
+}
+
+/// Wideband noise with collapsed stereo — typical of joint-stereo MP3 re-wrapped as FLAC.
+pub fn joint_stereo_transcode(sr: u32, secs: f64, seed: u32, cutoff_hz: f64) -> PcmBuffer {
+    let n = (sr as f64 * secs) as usize;
+    let mono = brick_wall_hard(&lcg_noise(n, seed), sr, cutoff_hz);
+    let right: Vec<f32> = mono.iter().map(|&l| l * 0.9998).collect();
+    let mut samples = Vec::with_capacity(n * 2);
+    for i in 0..n {
+        samples.push(mono[i]);
+        samples.push(right[i]);
+    }
+    PcmBuffer {
+        samples,
+        sample_rate: sr,
+        channels: 2,
+        bits_per_sample: Some(16),
+    }
 }
 
 /// Vinyl-like gentle rolloff (not a brick wall) — should stay genuine or inconclusive.

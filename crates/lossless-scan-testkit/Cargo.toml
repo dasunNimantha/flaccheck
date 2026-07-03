@@ -8,6 +8,8 @@ publish = false
 
 [dependencies]
 lossless-scan-core = { path = "../lossless-scan-core" }
+lossless-scan-detectors = { path = "../lossless-scan-detectors" }
+lossless-scan-decode = { path = "../lossless-scan-decode" }
 rustfft = { workspace = true }
 realfft = { workspace = true }
 serde = { workspace = true }
@@ -16,3 +18,7 @@ serde_json = { workspace = true }
 [[bin]]
 name = "lossless-scan-generate-corpus"
 path = "src/bin/generate_corpus.rs"
+
+[[bin]]
+name = "lossless-scan-calibrate"
+path = "src/bin/calibrate.rs"

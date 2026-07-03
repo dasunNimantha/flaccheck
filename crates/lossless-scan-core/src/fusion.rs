@@ -1,4 +1,4 @@
-use crate::{Evidence, HiresVerdict, TranscodeVerdict};
+use crate::{Evidence, HiresVerdict, Thresholds, TranscodeVerdict};
 
 /// Spectral information score in [0, 1]: how much high-frequency content exists.
 pub fn spectral_information_score(evidence: &[Evidence]) -> f64 {
@@ -12,6 +12,7 @@ pub fn spectral_information_score(evidence: &[Evidence]) -> f64 {
 /// Fuse detector evidence into transcode verdict, confidence, and codec guess.
 pub fn fuse_evidence(
     evidence: &[Evidence],
+    thresholds: &Thresholds,
 ) -> (TranscodeVerdict, f64, Option<String>, Option<u32>) {
     if evidence.is_empty() {
         return (TranscodeVerdict::Inconclusive, 0.0, None, None);
@@ -19,7 +20,6 @@ pub fn fuse_evidence(
 
     let info_score = spectral_information_score(evidence);
 
-    // Positive full-band signal: content reaches near Nyquist with no lossy cliff.
     let full_band = evidence
         .iter()
         .any(|e| e.signal == "full_band" && e.value >= 1.0);
@@ -28,10 +28,8 @@ pub fn fuse_evidence(
         .find(|e| e.signal == "edge_hz")
         .map(|e| e.value)
         .unwrap_or(0.0);
-    // Enough bandwidth that a hidden lossy cutoff is unlikely (>= ~18 kHz).
-    let sufficient_bandwidth = full_band || edge_hz >= 18000.0;
+    let sufficient_bandwidth = full_band || edge_hz >= thresholds.sufficient_bandwidth_hz;
 
-    // Band-limited abstention (Tier 5) — never abstain when clearly full-band.
     if !sufficient_bandwidth {
         if let Some(e) = evidence.iter().find(|e| e.signal == "abstain_band_limited") {
             if e.value >= 1.0 {
@@ -47,6 +45,7 @@ pub fn fuse_evidence(
     let mut codec_guess: Option<String> = None;
     let mut est_bitrate: Option<u32> = None;
     let mut max_weight = 0.0f64;
+    let mut codec_certainty = 0.0f64;
 
     for e in evidence {
         if e.detector == "hires"
@@ -55,30 +54,37 @@ pub fn fuse_evidence(
         {
             continue;
         }
-        // Informational signals carry physical units, not scores
         if matches!(
             e.signal.as_str(),
             "cutoff_hz"
                 | "rolloff_hz"
                 | "edge_hz"
                 | "full_band"
-                | "codec_guess"
                 | "est_bitrate_kbps"
-                | "mp3_pqmf"
                 | "ml_abstain"
                 | "ml_noop"
         ) || e.weight <= 0.0
         {
             continue;
         }
-        if e.value > 1.0 {
+        if e.signal == "codec_guess" {
+            codec_certainty = e.value;
+            codec_guess = Some(e.note.clone());
+            transcode_score += e.value * e.weight;
+            max_weight += e.weight.abs();
+            continue;
+        }
+        if e.value <= 0.0 {
+            continue;
+        }
+        if e.value > 1.0 && e.signal != "rolloff_steepness" {
+            if e.signal == "est_bitrate_kbps" {
+                est_bitrate = Some(e.value.round() as u32);
+            }
             continue;
         }
         transcode_score += e.value * e.weight;
         max_weight += e.weight.abs();
-        if e.signal == "codec_guess" && e.value > 0.0 {
-            codec_guess = Some(e.note.clone());
-        }
         if e.signal == "est_bitrate_kbps" {
             est_bitrate = Some(e.value.round() as u32);
         }
@@ -90,23 +96,46 @@ pub fn fuse_evidence(
         0.0
     };
 
-    let verdict = if normalized >= 0.72 {
-        TranscodeVerdict::Transcoded
-    } else if normalized >= 0.42 {
-        TranscodeVerdict::Suspicious
-    } else if sufficient_bandwidth {
-        // Full-band content with no transcode fingerprint reads genuine even if
-        // the high-frequency energy share is modest (bass-heavy masters).
-        TranscodeVerdict::Genuine
-    } else if info_score < 0.15 {
-        TranscodeVerdict::Inconclusive
-    } else {
-        TranscodeVerdict::Genuine
-    };
+    let brick_wall = evidence
+        .iter()
+        .find(|e| e.signal == "brick_wall")
+        .map(|e| e.value)
+        .unwrap_or(0.0);
+
+    // Content reaching ~18 kHz without a lossy cliff reads genuine unless codec ID is strong.
+    if (full_band || edge_hz >= thresholds.sufficient_bandwidth_hz)
+        && brick_wall < 0.35
+        && codec_certainty < 0.45
+    {
+        let confidence = (0.80 + 0.15 * (1.0 - normalized)).min(0.99);
+        return (
+            TranscodeVerdict::Genuine,
+            confidence,
+            codec_guess,
+            est_bitrate,
+        );
+    }
+
+    let verdict =
+        if full_band && normalized < thresholds.verdict_transcoded && codec_certainty < 0.35 {
+            TranscodeVerdict::Genuine
+        } else if normalized >= thresholds.verdict_transcoded {
+            TranscodeVerdict::Transcoded
+        } else if normalized >= thresholds.verdict_suspicious {
+            TranscodeVerdict::Suspicious
+        } else if sufficient_bandwidth {
+            TranscodeVerdict::Genuine
+        } else if info_score < 0.15 {
+            TranscodeVerdict::Inconclusive
+        } else {
+            TranscodeVerdict::Genuine
+        };
 
     let confidence = match verdict {
-        TranscodeVerdict::Transcoded => normalized,
-        TranscodeVerdict::Suspicious => 0.5 + (normalized - 0.42) * 0.5,
+        TranscodeVerdict::Transcoded => normalized.max(codec_certainty * 0.5),
+        TranscodeVerdict::Suspicious => {
+            0.5 + (normalized - thresholds.verdict_suspicious) * 0.5 + codec_certainty * 0.15
+        }
         TranscodeVerdict::Genuine => {
             if full_band {
                 (0.75 + 0.25 * (1.0 - normalized)).min(0.99)
@@ -156,9 +185,31 @@ mod tests {
             Evidence::new("spectral", "brick_wall", 0.95, 1.0, "MP3 cliff at 16kHz"),
             Evidence::new("spectral", "spectral_info_score", 0.8, 0.0, "HF present"),
         ];
-        let (v, conf, _, _) = fuse_evidence(&ev);
+        let (v, conf, _, _) = fuse_evidence(&ev, &Thresholds::default());
         assert_eq!(v, TranscodeVerdict::Transcoded);
         assert!(conf > 0.7);
+    }
+
+    #[test]
+    fn fuse_joint_stereo_evidence() {
+        let ev = vec![
+            Evidence::new("spectral", "early_rolloff", 0.042, 0.4, ""),
+            Evidence::new("artifacts", "phase_discontinuity", 1.0, 0.6, ""),
+            Evidence::new("artifacts", "joint_stereo", 0.6, 0.5, ""),
+            Evidence::new("quant", "aac_mdct_residual", 0.35, 1.2, ""),
+            Evidence::new("quant", "mp3_pqmf", 0.5, 1.0, ""),
+            Evidence::new("spectral", "spectral_info_score", 0.249, 0.0, ""),
+            Evidence::new("spectral", "edge_hz", 16106.0, 0.1, ""),
+        ];
+        let (v, c, _, _) = fuse_evidence(&ev, &Thresholds::default());
+        assert!(
+            matches!(
+                v,
+                TranscodeVerdict::Suspicious | TranscodeVerdict::Transcoded
+            ),
+            "got {:?} conf {c}",
+            v
+        );
     }
 
     #[test]
@@ -170,7 +221,7 @@ mod tests {
             1.0,
             "rolloff below 7kHz",
         )];
-        let (v, _, _, _) = fuse_evidence(&ev);
+        let (v, _, _, _) = fuse_evidence(&ev, &Thresholds::default());
         assert_eq!(v, TranscodeVerdict::Inconclusive);
     }
 }

@@ -1,6 +1,7 @@
 //! Shared types for lossless-scan analysis pipeline.
 
 mod analyze;
+mod calibration;
 mod evidence;
 mod fusion;
 mod pcm;
@@ -8,6 +9,7 @@ mod scan_mode;
 mod verdict;
 
 pub use analyze::{AnalysisConfig, AnalysisError};
+pub use calibration::Thresholds;
 pub use evidence::Evidence;
 pub use fusion::{fuse_evidence, fuse_hires_verdict, spectral_information_score};
 pub use pcm::PcmBuffer;

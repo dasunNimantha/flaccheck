@@ -13,3 +13,5 @@ ndarray = { workspace = true }
 [dev-dependencies]
 approx = "0.5"
 lossless-scan-testkit = { path = "../lossless-scan-testkit" }
+lossless-scan-decode = { path = "../lossless-scan-decode" }
+serde_json = { workspace = true }

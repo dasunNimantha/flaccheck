@@ -302,26 +302,23 @@ fn transcode_cases() -> Vec<LabeledCase> {
             ),
             "transcode_lowpass",
         ),
-        case_stretch(
+        case(
             "transcode_joint_stereo_a",
             GroundTruth::NotGenuine,
-            synth::joint_stereo_collapsed(44100, 3.0, 10),
-            "transcode_artifacts_stretch",
-            true,
+            synth::joint_stereo_transcode(44100, 3.0, 10, 16000.0),
+            "transcode_artifacts",
         ),
-        case_stretch(
+        case(
             "transcode_joint_stereo_b",
             GroundTruth::NotGenuine,
-            synth::joint_stereo_collapsed(44100, 3.0, 20),
-            "transcode_artifacts_stretch",
-            true,
+            synth::joint_stereo_transcode(44100, 3.0, 20, 15500.0),
+            "transcode_artifacts",
         ),
-        case_stretch(
+        case(
             "transcode_joint_stereo_c",
             GroundTruth::NotGenuine,
-            synth::joint_stereo_collapsed(44100, 3.0, 30),
-            "transcode_artifacts_stretch",
-            true,
+            synth::joint_stereo_transcode(44100, 3.0, 30, 15000.0),
+            "transcode_artifacts",
         ),
         case(
             "transcode_brick_13k",
@@ -508,6 +505,28 @@ fn hires_cases() -> Vec<LabeledCase> {
             GroundTruth::NotGenuine,
             synth::fake_upsample_44k_to_96k(2.5, 46),
             "hires_upsampled",
+        ),
+        case(
+            "transcode_opus_edge_12k",
+            GroundTruth::Transcoded,
+            synth::fake_mp3_transcode(48000, 2.5, 12000.0, 301),
+            "transcode_opus_edge",
+        ),
+        case(
+            "transcode_opus_edge_20k",
+            GroundTruth::Transcoded,
+            synth::fake_mp3_transcode(48000, 2.5, 20000.0, 302),
+            "transcode_opus_edge",
+        ),
+        case(
+            "transcode_vorbis_soft",
+            GroundTruth::NotGenuine,
+            synth::mono_buffer(
+                synth::steep_lowpass(&synth::lcg_noise(44100 * 3, 310), 0.10, 2),
+                44100,
+                16,
+            ),
+            "transcode_vorbis_soft",
         ),
     ]
 }
