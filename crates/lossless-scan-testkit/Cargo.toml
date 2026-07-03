@@ -1,0 +1,18 @@
+[package]
+name = "lossless-scan-testkit"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Synthetic audio corpus and metrics for lossless-scan tests"
+publish = false
+
+[dependencies]
+lossless-scan-core = { path = "../lossless-scan-core" }
+rustfft = { workspace = true }
+realfft = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[[bin]]
+name = "lossless-scan-generate-corpus"
+path = "src/bin/generate_corpus.rs"

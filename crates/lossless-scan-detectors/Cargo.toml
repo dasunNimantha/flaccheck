@@ -12,3 +12,4 @@ ndarray = { workspace = true }
 
 [dev-dependencies]
 approx = "0.5"
+lossless-scan-testkit = { path = "../lossless-scan-testkit" }

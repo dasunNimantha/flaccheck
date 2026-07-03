@@ -6,6 +6,7 @@ members = [
     "crates/lossless-scan-decode",
     "crates/lossless-scan-detectors",
     "crates/lossless-scan-ml",
+    "crates/lossless-scan-testkit",
 ]
 
 [workspace.package]
@@ -29,3 +30,8 @@ realfft = "3.4"
 ndarray = "0.16"
 minijinja = "2.7"
 tract-onnx = "0.21"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

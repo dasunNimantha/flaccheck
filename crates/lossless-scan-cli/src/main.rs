@@ -1,7 +1,10 @@
 use clap::Parser;
-use indicatif::{ParallelProgressIterator, ProgressStyle};
+use indicatif::ParallelProgressIterator;
+use lossless_scan::args::{BenchmarkArgs, Command, LegacyScanConfig, OutputOpts, ScanArgs};
+use lossless_scan::benchmark::run_benchmark;
 use lossless_scan::report::{OutputFormat, ScanReport};
-use lossless_scan::{analyze_one, Args, FileOutcome};
+use lossless_scan::scan::{analyze_one, FileOutcome};
+use lossless_scan::ui::{ColorMode, Ui};
 use lossless_scan_core::{AnalysisConfig, ScanMode};
 use lossless_scan_decode::collect_audio_files;
 use lossless_scan_ml::{MlClassifier, MlConfig};
@@ -10,89 +13,111 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 fn resolve_inputs(path: &Path) -> Vec<PathBuf> {
-  if path.is_file() {
-    return vec![path.to_path_buf()];
-  }
-  collect_audio_files(path)
+    if path.is_file() {
+        return vec![path.to_path_buf()];
+    }
+    collect_audio_files(path)
 }
 
 fn main() -> ExitCode {
-  match run() {
-    Ok(()) => ExitCode::SUCCESS,
-    Err(e) => {
-      eprintln!("error: {e}");
-      ExitCode::FAILURE
+    match run() {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) => {
+            let ui = Ui::new(ColorMode::Auto, false);
+            ui.error_line(&format!("{e}"));
+            ExitCode::FAILURE
+        }
     }
-  }
 }
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
-  let args = Args::parse();
+    let cli = lossless_scan::args::Cli::parse();
 
-  if let Some(bench_path) = &args.benchmark {
-    return lossless_scan::benchmark::run_benchmark(bench_path, &args);
-  }
+    match cli.command {
+        Command::Scan(args) => run_scan(&args),
+        Command::Benchmark(args) => run_benchmark_cmd(&args),
+    }
+}
 
-  let files = resolve_inputs(&args.path);
-  if files.is_empty() {
-    return Err("no supported audio files found".into());
-  }
+fn ui_from_opts(opts: &OutputOpts) -> Ui {
+    let color = ColorMode::from_arg(&opts.color).unwrap_or(ColorMode::Auto);
+    Ui::new(color, opts.quiet)
+}
 
-  let mode: ScanMode = args.mode.into();
-  let config = AnalysisConfig::for_mode(mode);
-  let ml = MlClassifier::new(&MlConfig {
-    enabled: args.ml,
-    model_path: args.model.as_ref().map(|p| p.display().to_string()),
-  });
+fn run_scan(args: &ScanArgs) -> Result<(), Box<dyn std::error::Error>> {
+    let ui = ui_from_opts(&args.opts);
+    let files = resolve_inputs(&args.path);
+    if files.is_empty() {
+        return Err(format!("no supported audio files found in {}", args.path.display()).into());
+    }
 
-  let pool = rayon::ThreadPoolBuilder::new()
-    .num_threads(args.workers.max(1))
-    .build()?;
+    let mode: ScanMode = args.opts.mode.into();
+    let config = AnalysisConfig::for_mode(mode);
+    let ml = MlClassifier::new(&MlConfig {
+        enabled: args.opts.ml,
+        model_path: args.opts.model.as_ref().map(|p| p.display().to_string()),
+    });
 
-  let outcomes: Vec<FileOutcome> = pool.install(|| {
-    files
-      .par_iter()
-      .progress_with_style(
-        ProgressStyle::with_template("{spinner:.green} [{bar:40.cyan/blue}] {pos}/{len}")
-          .unwrap()
-          .progress_chars("=>-"),
-      )
-      .map(|path| analyze_one(path, &config, &ml, args.explain))
-      .collect()
-  });
+    let format = OutputFormat::from_format_arg(args.opts.format);
+    if matches!(format, OutputFormat::Text) {
+        ui.print_banner(args.opts.mode.label());
+        if !ui.quiet {
+            ui.status(&format!(
+                "scanning {} file(s) from {}",
+                files.len(),
+                args.path.display()
+            ));
+        }
+    }
 
-  let report = ScanReport {
-    results: outcomes.iter().filter_map(|o| o.result.clone()).collect(),
-    skipped: outcomes.iter().filter_map(|o| o.skipped.clone()).collect(),
-    errors: outcomes.iter().filter_map(|o| o.error.clone()).collect(),
-  };
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(args.opts.workers.max(1))
+        .build()?;
 
-  let body = report.render(OutputFormat::from_format_arg(args.format), args.explain)?;
-  if let Some(p) = &args.output {
-    std::fs::write(p, body)?;
-    eprintln!("wrote {}", p.display());
-  } else {
-    print!("{body}");
-  }
+    let outcomes: Vec<FileOutcome> = pool.install(|| {
+        if ui.quiet || files.len() <= 1 {
+            files
+                .par_iter()
+                .map(|path| analyze_one(path, &config, &ml, args.opts.explain))
+                .collect()
+        } else {
+            files
+                .par_iter()
+                .progress_with_style(Ui::progress_style())
+                .map(|path| analyze_one(path, &config, &ml, args.opts.explain))
+                .collect()
+        }
+    });
 
-  let bad = report
-    .results
-    .iter()
-    .filter(|r| {
-      matches!(
-        r.transcode_verdict,
-        lossless_scan_core::TranscodeVerdict::Transcoded
-          | lossless_scan_core::TranscodeVerdict::Suspicious
-      )
-    })
-    .count();
-  eprintln!(
-    "scanned {} files, {} suspicious/transcoded, {} skipped, {} errors",
-    report.results.len(),
-    bad,
-    report.skipped.len(),
-    report.errors.len()
-  );
+    let report = ScanReport {
+        results: outcomes.iter().filter_map(|o| o.result.clone()).collect(),
+        skipped: outcomes.iter().filter_map(|o| o.skipped.clone()).collect(),
+        errors: outcomes.iter().filter_map(|o| o.error.clone()).collect(),
+    };
 
-  Ok(())
+    let body = report.render(format, args.opts.explain, &ui)?;
+    if let Some(p) = &args.opts.output {
+        std::fs::write(p, &body)?;
+        ui.success(&format!("wrote {}", p.display()));
+    } else {
+        print!("{body}");
+        if matches!(format, OutputFormat::Text) && !body.ends_with('\n') && !body.is_empty() {
+            println!();
+        }
+    }
+
+    ui.print_summary(
+        report.results.len(),
+        report.suspicious_count(),
+        report.skipped.len(),
+        report.errors.len(),
+    );
+
+    Ok(())
+}
+
+fn run_benchmark_cmd(args: &BenchmarkArgs) -> Result<(), Box<dyn std::error::Error>> {
+    let ui = ui_from_opts(&args.opts);
+    let legacy = LegacyScanConfig::from(&args.opts);
+    run_benchmark(&args.manifest, &legacy, &ui)
 }
