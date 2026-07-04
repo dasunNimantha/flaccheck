@@ -30,3 +30,13 @@ Tags containing a hyphen after the version (e.g. `v0.2.0-beta.1`) are published 
 | --- | --- | --- |
 | [ci.yml](.github/workflows/ci.yml) | Pull requests, manual | Required checks before merge |
 | [release.yml](.github/workflows/release.yml) | `v*` tag push | Tests + binaries + GitHub Release |
+
+## Dependency updates (Renovate)
+
+Same setup as [tablio](https://github.com/dasunNimantha/tablio):
+
+- [`renovate.json`](renovate.json) — `platformAutomerge` + automerge for minor/patch after 7-day release age
+- [**Renovate Approve**](https://github.com/apps/renovate-approve) GitHub App — auto-approves Renovate PRs (required for protected-branch automerge)
+- **Branch rules** — `CI Required` must pass + 1 approving review before merge
+
+Flow: Renovate opens PR → `renovate-approve` approves → CI passes → Renovate squash-merges automatically.
