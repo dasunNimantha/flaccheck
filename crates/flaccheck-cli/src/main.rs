@@ -1,15 +1,17 @@
 use clap::Parser;
-use indicatif::ParallelProgressIterator;
-use flaccheck::args::{BenchmarkArgs, Command, FeaturesArgs, LegacyScanConfig, OutputOpts, ScanArgs, ServeArgs};
+use flaccheck::args::{
+    BenchmarkArgs, Command, FeaturesArgs, LegacyScanConfig, OutputOpts, ScanArgs, ServeArgs,
+};
 use flaccheck::benchmark::run_benchmark;
 use flaccheck::features::run_features;
-use flaccheck_web::ServerConfig;
 use flaccheck::report::{OutputFormat, ScanReport};
 use flaccheck::scan::{analyze_one, FileOutcome};
 use flaccheck::ui::{ColorMode, Ui};
 use flaccheck_core::{AnalysisConfig, ScanMode};
 use flaccheck_decode::collect_audio_files;
 use flaccheck_ml::{MlClassifier, MlConfig};
+use flaccheck_web::ServerConfig;
+use indicatif::ParallelProgressIterator;
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;

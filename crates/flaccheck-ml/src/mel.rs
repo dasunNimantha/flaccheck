@@ -74,7 +74,12 @@ fn channel_mel(samples: &[f32], sample_rate: u32) -> Vec<f32> {
     crop_or_pad_frames(&mel, N_MELS, n_frames_avail, N_FRAMES)
 }
 
-fn crop_or_pad_frames(mel: &[f32], n_mels: usize, n_frames_avail: usize, target_frames: usize) -> Vec<f32> {
+fn crop_or_pad_frames(
+    mel: &[f32],
+    n_mels: usize,
+    n_frames_avail: usize,
+    target_frames: usize,
+) -> Vec<f32> {
     let mut out = vec![0.0f32; n_mels * target_frames];
     if n_frames_avail >= target_frames {
         let start = (n_frames_avail - target_frames) / 2;

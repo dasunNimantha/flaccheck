@@ -46,11 +46,9 @@ impl OnnxModel {
 
         use ndarray::Array4;
 
-        let arr = Array4::from_shape_vec(
-            (1, INPUT_CHANNELS, INPUT_WIDTH, INPUT_HEIGHT),
-            tensor_data,
-        )
-        .map_err(|_| OnnxError::BadOutput)?;
+        let arr =
+            Array4::from_shape_vec((1, INPUT_CHANNELS, INPUT_WIDTH, INPUT_HEIGHT), tensor_data)
+                .map_err(|_| OnnxError::BadOutput)?;
         let input = arr.into_tvalue();
 
         let outputs = self.model.run(tvec!(input))?;

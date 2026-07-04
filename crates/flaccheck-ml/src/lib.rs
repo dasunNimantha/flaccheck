@@ -134,15 +134,29 @@ impl MlClassifier {
 
         if let Some(ref model) = self.classical {
             let prob = model.predict_from_evidence(&result.evidence);
-            apply_ml_score(result, prob, model.threshold, "classical_prob", "classical logistic regression");
+            apply_ml_score(
+                result,
+                prob,
+                model.threshold,
+                "classical_prob",
+                "classical logistic regression",
+            );
             return Ok(());
         }
 
         #[cfg(feature = "onnx")]
         if let Some(ref onnx) = self.onnx {
             let mel = mel::mid_side_mel(pcm);
-            let prob = onnx.predict(&mel).map_err(|e| MlError::ModelLoad(e.to_string()))?;
-            apply_ml_score(result, prob, 0.5, "onnx_borderline", "mid/side mel CNN (tract-onnx)");
+            let prob = onnx
+                .predict(&mel)
+                .map_err(|e| MlError::ModelLoad(e.to_string()))?;
+            apply_ml_score(
+                result,
+                prob,
+                0.5,
+                "onnx_borderline",
+                "mid/side mel CNN (tract-onnx)",
+            );
             return Ok(());
         }
 
@@ -178,7 +192,9 @@ fn apply_ml_score(
     signal: &str,
     note: &str,
 ) {
-    result.evidence.push(Evidence::new("ml", signal, prob, 0.85, note));
+    result
+        .evidence
+        .push(Evidence::new("ml", signal, prob, 0.85, note));
 
     if prob >= threshold + 0.15 {
         result.transcode_verdict = TranscodeVerdict::Transcoded;
@@ -308,10 +324,7 @@ mod tests {
 
         ml.refine_borderline(&pcm, &mut result).unwrap();
         assert!(
-            result
-                .evidence
-                .iter()
-                .any(|e| e.signal == "classical_prob"),
+            result.evidence.iter().any(|e| e.signal == "classical_prob"),
             "expected classical_prob evidence"
         );
     }
@@ -325,7 +338,11 @@ mod tests {
             return;
         }
         let onnx = crate::onnx_infer::OnnxModel::load(path).unwrap();
-        let mel = vec![0.0f32; crate::mel::INPUT_CHANNELS * crate::mel::INPUT_HEIGHT * crate::mel::INPUT_WIDTH];
+        let mel =
+            vec![
+                0.0f32;
+                crate::mel::INPUT_CHANNELS * crate::mel::INPUT_HEIGHT * crate::mel::INPUT_WIDTH
+            ];
         let prob = onnx.predict(&mel).unwrap();
         assert!((0.0..=1.0).contains(&prob));
     }

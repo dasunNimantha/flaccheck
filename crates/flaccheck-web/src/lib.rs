@@ -171,10 +171,7 @@ async fn scan_handler(
         }
         std::fs::write(&path, &data).map_err(|e| WebError::Internal(e.to_string()))?;
         if is_audio_path(&path) {
-            uploads.push(UploadItem {
-                path,
-                display_name,
-            });
+            uploads.push(UploadItem { path, display_name });
         }
     }
 

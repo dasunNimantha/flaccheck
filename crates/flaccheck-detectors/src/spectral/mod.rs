@@ -413,9 +413,7 @@ fn detect_cutoff(
                 let strength =
                     ((drop - min_drop) / thresholds.brick_wall_strength_divisor).clamp(0.0, 1.0);
                 // Prefer the lowest-frequency (earliest) strong cliff.
-                if strength > best_strength + 0.05
-                    || (strength > 0.0 && best_strength == 0.0)
-                {
+                if strength > best_strength + 0.05 || (strength > 0.0 && best_strength == 0.0) {
                     best_strength = strength;
                     best_cutoff = f;
                 }

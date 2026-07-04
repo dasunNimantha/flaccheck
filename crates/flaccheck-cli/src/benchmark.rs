@@ -1,9 +1,9 @@
 use crate::args::LegacyScanConfig;
 use crate::scan::{analyze_one, FileOutcome};
 use crate::ui::Ui;
-use indicatif::{ProgressBar, ProgressStyle};
 use flaccheck_core::ScanMode;
 use flaccheck_ml::{MlClassifier, MlConfig};
+use indicatif::{ProgressBar, ProgressStyle};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;

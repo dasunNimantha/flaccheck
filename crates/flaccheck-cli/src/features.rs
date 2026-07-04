@@ -2,11 +2,11 @@ use crate::args::LegacyScanConfig;
 use crate::benchmark::{load_manifest, ManifestEntry};
 use crate::scan::{analyze_one, FileOutcome};
 use crate::ui::Ui;
-use indicatif::{ProgressBar, ProgressStyle};
 use flaccheck_core::{
-    evidence_feature_map, evidence_to_feature_vector, ML_FEATURE_ORDER, ScanMode,
+    evidence_feature_map, evidence_to_feature_vector, ScanMode, ML_FEATURE_ORDER,
 };
 use flaccheck_ml::{MlClassifier, MlConfig};
+use indicatif::{ProgressBar, ProgressStyle};
 use serde::Serialize;
 use std::io::{BufWriter, Write};
 use std::path::Path;
