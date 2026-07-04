@@ -32,7 +32,7 @@ flaccheck-detectors = { path = "../flaccheck-detectors" }
 flaccheck-ml = { path = "../flaccheck-ml" }
 flaccheck-web = { path = "../flaccheck-web" }
 clap = { workspace = true }
-console = "0.15"
+console = "0.16"
 comfy-table = "7.1"
 indicatif = { workspace = true }
 rayon = { workspace = true }
