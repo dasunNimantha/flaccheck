@@ -107,12 +107,10 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           TARGET="${{ matrix.target }}"
-          PKG="flaccheck-${VERSION}-${TARGET}"
-          mkdir -p "$PKG"
-          cp "target/${TARGET}/release/${{ matrix.bin }}" "$PKG/"
-          cp README.md LICENSE "$PKG/"
-          tar czf "${PKG}.tar.gz" "$PKG"
-          echo "asset=${PKG}.tar.gz" >> "$GITHUB_ENV"
+          ASSET="flaccheck-${VERSION}-${TARGET}"
+          cp "target/${TARGET}/release/${{ matrix.bin }}" "$ASSET"
+          chmod +x "$ASSET"
+          echo "asset=$ASSET" >> "$GITHUB_ENV"
 
       - name: Package (Windows)
         if: matrix.archive == 'zip'
@@ -120,12 +118,9 @@ jobs:
         run: |
           $version = "${{ steps.version.outputs.version }}"
           $target = "${{ matrix.target }}"
-          $pkg = "flaccheck-$version-$target"
-          New-Item -ItemType Directory -Path $pkg
-          Copy-Item "target/$target/release/${{ matrix.bin }}" $pkg/
-          Copy-Item README.md, LICENSE $pkg/
-          Compress-Archive -Path $pkg -DestinationPath "$pkg.zip"
-          "asset=$pkg.zip" >> $env:GITHUB_ENV
+          $asset = "flaccheck-$version-$target.exe"
+          Copy-Item "target/$target/release/${{ matrix.bin }}" $asset
+          "asset=$asset" >> $env:GITHUB_ENV
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -170,15 +165,15 @@ jobs:
 
             ### Install
 
-            Download the archive for your platform, extract, and run `flaccheck`:
+            Download the binary for your platform, make it executable if needed (`chmod +x flaccheck-*`), and run it:
 
             | Platform | Asset |
             | --- | --- |
-            | Linux x86_64 | `flaccheck-*-x86_64-unknown-linux-gnu.tar.gz` |
-            | Linux ARM64 | `flaccheck-*-aarch64-unknown-linux-gnu.tar.gz` |
-            | macOS Intel | `flaccheck-*-x86_64-apple-darwin.tar.gz` |
-            | macOS Apple Silicon | `flaccheck-*-aarch64-apple-darwin.tar.gz` |
-            | Windows x86_64 | `flaccheck-*-x86_64-pc-windows-msvc.zip` |
+            | Linux x86_64 | `flaccheck-*-x86_64-unknown-linux-gnu` |
+            | Linux ARM64 | `flaccheck-*-aarch64-unknown-linux-gnu` |
+            | macOS Intel | `flaccheck-*-x86_64-apple-darwin` |
+            | macOS Apple Silicon | `flaccheck-*-aarch64-apple-darwin` |
+            | Windows x86_64 | `flaccheck-*-x86_64-pc-windows-msvc.exe` |
 
             Or build from source:
 

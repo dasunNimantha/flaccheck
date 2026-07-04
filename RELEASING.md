@@ -16,7 +16,7 @@ Releases are **tag-driven**, matching [tablio](https://github.com/dasunNimantha/
 4. The [Release workflow](.github/workflows/release.yml) runs automatically:
    - format, clippy, and full test suite
    - cross-platform release binaries (Linux, macOS, Windows)
-   - GitHub Release with downloadable archives
+   - GitHub Release with per-platform binaries (no archive extract step)
 
 The tag **must** match `Cargo.toml` exactly (`v0.1.0` ↔ `version = "0.1.0"`). A mismatch fails the build.
 
