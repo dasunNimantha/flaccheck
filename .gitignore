@@ -1,13 +1,16 @@
 /benchmarks/
+/benchmarks_v2/
 !/benchmarks/vendor/
 /target/
 /datasets/output/
 /datasets/genuine_diverse/
 /datasets/realistic_sources/
+/datasets/benchmark_v2_sources/
 *.onnx
 *.pt
 features.jsonl
 models/classical_model.json
 __pycache__/
 .venv/
+node_modules/
 research/.venv/

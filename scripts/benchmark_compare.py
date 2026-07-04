@@ -15,16 +15,51 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MANIFEST = ROOT / "datasets/output/realistic/manifest.json"
-OUT_DIR = ROOT / "docs/benchmarks"
-BENCH_DIR = ROOT / "benchmarks"
-FLACCHECK_SCAN = BENCH_DIR / "flaccheck_per_file.json"
-FLAC_DETECTIVE = BENCH_DIR / "flac_detective.json"
-ISFLAC_JSON = BENCH_DIR / "isflac.json"
-SOUNDAUDIT_DB = BENCH_DIR / "soundaudit.db"
-AUDIOCHECKR_JSON = BENCH_DIR / "audiocheckr.json"
-AUDIOCHECKR_BIN = BENCH_DIR / "vendor/audiocheckr/target/release/audiocheckr"
+DEFAULT_MANIFEST = ROOT / "datasets/output/realistic/manifest.json"
+DEFAULT_MANIFEST_V2 = ROOT / "datasets/output/benchmark_v2/manifest.json"
+DEFAULT_OUT_DIR = ROOT / "docs/benchmarks"
+DEFAULT_BENCH_DIR = ROOT / "benchmarks"
+DEFAULT_BENCH_DIR_V2 = ROOT / "benchmarks_v2"
+AUDIOCHECKR_BIN = DEFAULT_BENCH_DIR / "vendor/audiocheckr/target/release/audiocheckr"
 ISFLAC_BIN = Path.home() / ".cargo/bin/isflac"
+
+
+@dataclass
+class BenchConfig:
+    manifest: Path
+    out_dir: Path
+    bench_dir: Path
+
+    @property
+    def corpus_dir(self) -> Path:
+        return self.manifest.parent
+
+    @property
+    def flaccheck_scan(self) -> Path:
+        return self.bench_dir / "flaccheck_per_file.json"
+
+    @property
+    def flac_detective(self) -> Path:
+        return self.bench_dir / "flac_detective.json"
+
+    @property
+    def isflac_json(self) -> Path:
+        return self.bench_dir / "isflac.json"
+
+    @property
+    def soundaudit_db(self) -> Path:
+        return self.bench_dir / "soundaudit.db"
+
+    @property
+    def audiocheckr_json(self) -> Path:
+        return self.bench_dir / "audiocheckr.json"
+
+
+CFG = BenchConfig(
+    manifest=DEFAULT_MANIFEST,
+    out_dir=DEFAULT_OUT_DIR,
+    bench_dir=DEFAULT_BENCH_DIR,
+)
 
 
 @dataclass
@@ -36,8 +71,9 @@ class Pred:
     codec: str
 
 
-def load_manifest() -> list[dict]:
-    return json.loads(MANIFEST.read_text())
+def load_manifest(cfg: BenchConfig | None = None) -> list[dict]:
+    manifest = (cfg or CFG).manifest
+    return json.loads(manifest.read_text())
 
 
 def codec_from_path(path: str) -> str:
@@ -136,9 +172,10 @@ def by_codec(preds: list[Pred]) -> dict[str, dict]:
     return {codec: metrics(items) for codec, items in sorted(groups.items())}
 
 
-def load_flaccheck() -> list[Pred]:
-    data = json.loads(FLACCHECK_SCAN.read_text())
-    label_by_path = {e["path"]: e["label"] for e in load_manifest()}
+def load_flaccheck(cfg: BenchConfig | None = None) -> list[Pred]:
+    cfg = cfg or CFG
+    data = json.loads(cfg.flaccheck_scan.read_text())
+    label_by_path = {e["path"]: e["label"] for e in load_manifest(cfg)}
     return [
         Pred(
             tool="flaccheck",
@@ -151,9 +188,10 @@ def load_flaccheck() -> list[Pred]:
     ]
 
 
-def load_flac_detective() -> list[Pred]:
-    data = json.loads(FLAC_DETECTIVE.read_text())
-    label_by_path = {e["path"]: e["label"] for e in load_manifest()}
+def load_flac_detective(cfg: BenchConfig | None = None) -> list[Pred]:
+    cfg = cfg or CFG
+    data = json.loads(cfg.flac_detective.read_text())
+    label_by_path = {e["path"]: e["label"] for e in load_manifest(cfg)}
     return [
         Pred(
             tool="FLAC Detective",
@@ -166,9 +204,10 @@ def load_flac_detective() -> list[Pred]:
     ]
 
 
-def load_isflac() -> list[Pred]:
-    rows = json.loads(ISFLAC_JSON.read_text())
-    label_by_path = {e["path"]: e["label"] for e in load_manifest()}
+def load_isflac(cfg: BenchConfig | None = None) -> list[Pred]:
+    cfg = cfg or CFG
+    rows = json.loads(cfg.isflac_json.read_text())
+    label_by_path = {e["path"]: e["label"] for e in load_manifest(cfg)}
     return [
         Pred(
             tool="isflac",
@@ -181,9 +220,10 @@ def load_isflac() -> list[Pred]:
     ]
 
 
-def load_soundaudit() -> list[Pred]:
-    label_by_path = {e["path"]: e["label"] for e in load_manifest()}
-    conn = sqlite3.connect(SOUNDAUDIT_DB)
+def load_soundaudit(cfg: BenchConfig | None = None) -> list[Pred]:
+    cfg = cfg or CFG
+    label_by_path = {e["path"]: e["label"] for e in load_manifest(cfg)}
+    conn = sqlite3.connect(cfg.soundaudit_db)
     preds: list[Pred] = []
     for abs_path, is_transcode in conn.execute("SELECT path, is_transcode FROM files"):
         rel = Path(abs_path)
@@ -206,9 +246,10 @@ def load_soundaudit() -> list[Pred]:
     return preds
 
 
-def load_audiocheckr() -> list[Pred]:
-    rows = json.loads(AUDIOCHECKR_JSON.read_text())
-    label_by_path = {e["path"]: e["label"] for e in load_manifest()}
+def load_audiocheckr(cfg: BenchConfig | None = None) -> list[Pred]:
+    cfg = cfg or CFG
+    rows = json.loads(cfg.audiocheckr_json.read_text())
+    label_by_path = {e["path"]: e["label"] for e in load_manifest(cfg)}
     return [
         Pred(
             tool="audiocheckr",
@@ -258,17 +299,17 @@ def collect_isflac(entries: list[dict]) -> None:
         for fut in as_completed(futures):
             rows.append(fut.result())
     rows.sort(key=lambda r: r["path"])
-    ISFLAC_JSON.write_text(json.dumps(rows, indent=2) + "\n")
-    print(f"wrote {ISFLAC_JSON}")
+    CFG.isflac_json.write_text(json.dumps(rows, indent=2) + "\n")
+    print(f"wrote {CFG.isflac_json}")
 
 
 def collect_soundaudit(entries: list[dict]) -> None:
-    corpus = ROOT / "datasets/output/realistic"
-    BENCH_DIR.mkdir(parents=True, exist_ok=True)
-    if SOUNDAUDIT_DB.exists():
-        SOUNDAUDIT_DB.unlink()
+    corpus = CFG.corpus_dir
+    CFG.bench_dir.mkdir(parents=True, exist_ok=True)
+    if CFG.soundaudit_db.exists():
+        CFG.soundaudit_db.unlink()
     subprocess.run(
-        ["soundaudit", "scan", str(corpus), "--db", str(SOUNDAUDIT_DB), "-j", "4"],
+        ["soundaudit", "scan", str(corpus), "--db", str(CFG.soundaudit_db), "-j", "4"],
         check=True,
     )
     subprocess.run(
@@ -276,7 +317,7 @@ def collect_soundaudit(entries: list[dict]) -> None:
             "soundaudit",
             "analyze",
             "--db",
-            str(SOUNDAUDIT_DB),
+            str(CFG.soundaudit_db),
             "--transcodes",
             "--no-duplicates",
             "--workers",
@@ -284,7 +325,7 @@ def collect_soundaudit(entries: list[dict]) -> None:
         ],
         check=True,
     )
-    print(f"wrote {SOUNDAUDIT_DB}")
+    print(f"wrote {CFG.soundaudit_db}")
 
 
 def collect_audiocheckr(entries: list[dict]) -> None:
@@ -302,19 +343,20 @@ def collect_audiocheckr(entries: list[dict]) -> None:
             if i % 20 == 0:
                 print(f"  audiocheckr {i}/{len(entries)}")
     rows.sort(key=lambda r: r["path"])
-    AUDIOCHECKR_JSON.write_text(json.dumps(rows, indent=2) + "\n")
-    print(f"wrote {AUDIOCHECKR_JSON}")
+    CFG.audiocheckr_json.write_text(json.dumps(rows, indent=2) + "\n")
+    print(f"wrote {CFG.audiocheckr_json}")
 
 
 def make_charts(summary: dict, tool_preds: list[tuple[str, list[Pred]]]) -> None:
     import matplotlib.pyplot as plt
 
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    CFG.out_dir.mkdir(parents=True, exist_ok=True)
     plt.style.use("seaborn-v0_8-whitegrid")
 
     tools = [t["name"] for t in summary["tools"]]
     precision = [t["overall"]["precision"] or 0 for t in summary["tools"]]
     recall = [t["overall"]["recall"] or 0 for t in summary["tools"]]
+    n_total = summary.get("total_files", 0)
 
     fig, ax = plt.subplots(figsize=(12, 5.5))
     x = range(len(tools))
@@ -325,10 +367,10 @@ def make_charts(summary: dict, tool_preds: list[tuple[str, list[Pred]]]) -> None
     ax.set_xticklabels(tools, rotation=20, ha="right")
     ax.set_ylim(0, 105)
     ax.set_ylabel("Percent")
-    ax.set_title("Fake-lossless detection on real-music corpus (n=121)")
+    ax.set_title(f"Fake-lossless detection on real-music corpus (n={n_total})")
     ax.legend(loc="lower right")
     fig.tight_layout()
-    fig.savefig(OUT_DIR / "overall_precision_recall.png", dpi=160)
+    fig.savefig(CFG.out_dir / "overall_precision_recall.png", dpi=160)
     plt.close(fig)
 
     codecs = ["mp3", "aac", "opus", "vorbis"]
@@ -348,7 +390,7 @@ def make_charts(summary: dict, tool_preds: list[tuple[str, list[Pred]]]) -> None
     ax.set_title("Recall by source codec (lossy → FLAC)")
     ax.legend(fontsize=8, ncol=2)
     fig.tight_layout()
-    fig.savefig(OUT_DIR / "recall_by_codec.png", dpi=160)
+    fig.savefig(CFG.out_dir / "recall_by_codec.png", dpi=160)
     plt.close(fig)
 
     fig, ax = plt.subplots(figsize=(12, 4.5))
@@ -364,14 +406,24 @@ def make_charts(summary: dict, tool_preds: list[tuple[str, list[Pred]]]) -> None
     ax.set_title("False alarms on authentic sources (lower is better)")
     plt.xticks(rotation=20, ha="right")
     fig.tight_layout()
-    fig.savefig(OUT_DIR / "genuine_false_positive_rate.png", dpi=160)
+    fig.savefig(CFG.out_dir / "genuine_false_positive_rate.png", dpi=160)
     plt.close(fig)
 
 
-def build_summary(tool_preds: list[tuple[str, list[Pred]]]) -> dict:
+def build_summary(
+    tool_preds: list[tuple[str, list[Pred]]],
+    entries: list[dict],
+    corpora: list[str] | None = None,
+) -> dict:
+    n_genuine = sum(1 for e in entries if e["label"] == "genuine")
+    n_trans = sum(1 for e in entries if e["label"] == "transcoded")
     summary = {
-        "corpus": str(MANIFEST.relative_to(ROOT)),
-        "description": "Real-music sources transcoded to FLAC (ffmpeg); 11 genuine + 110 transcodes",
+        "corpora": corpora or [str(CFG.manifest.relative_to(ROOT))],
+        "description": (
+            f"Real-music sources transcoded to FLAC (ffmpeg); "
+            f"{n_genuine} genuine + {n_trans} transcodes"
+        ),
+        "total_files": len(entries),
         "tools": [],
     }
     for name, preds in tool_preds:
@@ -381,8 +433,67 @@ def build_summary(tool_preds: list[tuple[str, list[Pred]]]) -> dict:
     return summary
 
 
+def combined_corpora() -> list[BenchConfig]:
+    return [
+        BenchConfig(DEFAULT_MANIFEST, DEFAULT_OUT_DIR, DEFAULT_BENCH_DIR),
+        BenchConfig(DEFAULT_MANIFEST_V2, DEFAULT_OUT_DIR, DEFAULT_BENCH_DIR_V2),
+    ]
+
+
+def merge_tool_preds(corpora: list[BenchConfig]) -> tuple[list[dict], list[tuple[str, list[Pred]]]]:
+    entries: list[dict] = []
+    for cfg in corpora:
+        entries.extend(load_manifest(cfg))
+
+    tool_specs: list[tuple[str, object, object, bool]] = [
+        ("flaccheck", load_flaccheck, lambda c: c.flaccheck_scan, True),
+        ("FLAC Detective", load_flac_detective, lambda c: c.flac_detective, True),
+        ("isflac", load_isflac, lambda c: c.isflac_json, False),
+        ("soundaudit", load_soundaudit, lambda c: c.soundaudit_db, False),
+        ("audiocheckr", load_audiocheckr, lambda c: c.audiocheckr_json, False),
+    ]
+    tool_preds: list[tuple[str, list[Pred]]] = []
+    for name, loader, path_fn, required in tool_specs:
+        if not all(path_fn(cfg).exists() for cfg in corpora):
+            if required:
+                raise SystemExit(
+                    f"Missing {name} outputs for --combine; run scans on all corpora first."
+                )
+            print(f"skip {name}: missing output in one or more corpora", file=sys.stderr)
+            continue
+        preds: list[Pred] = []
+        for cfg in corpora:
+            preds.extend(loader(cfg))
+        tool_preds.append((name, preds))
+    return entries, tool_preds
+
+
 def main() -> int:
+    global CFG
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        default=DEFAULT_MANIFEST,
+        help="Labeled manifest JSON (default: v1 realistic corpus)",
+    )
+    parser.add_argument(
+        "--out-dir",
+        type=Path,
+        default=DEFAULT_OUT_DIR,
+        help="Directory for comparison.json and chart PNGs",
+    )
+    parser.add_argument(
+        "--bench-dir",
+        type=Path,
+        default=DEFAULT_BENCH_DIR,
+        help="Directory for tool scan outputs (flaccheck, isflac, etc.)",
+    )
+    parser.add_argument(
+        "--combine",
+        action="store_true",
+        help="Merge v1 + v2 corpora into one report (requires scans in benchmarks/ and benchmarks_v2/)",
+    )
     parser.add_argument(
         "--collect",
         action="store_true",
@@ -390,39 +501,59 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    entries = load_manifest()
-    if args.collect:
-        collect_isflac(entries)
-        collect_soundaudit(entries)
-        collect_audiocheckr(entries)
-
-    missing = []
-    if not FLACCHECK_SCAN.exists():
-        missing.append(str(FLACCHECK_SCAN))
-    if not FLAC_DETECTIVE.exists():
-        missing.append(str(FLAC_DETECTIVE))
-    if missing:
-        print("Missing prerequisite outputs:", ", ".join(missing), file=sys.stderr)
-        print("See README benchmarks section.", file=sys.stderr)
+    if args.combine and args.collect:
+        print("--collect with --combine is not supported; collect per corpus first.", file=sys.stderr)
         return 1
 
-    tool_preds: list[tuple[str, list[Pred]]] = [
-        ("flaccheck", load_flaccheck()),
-        ("FLAC Detective", load_flac_detective()),
-    ]
-    for name, path, loader in (
-        ("isflac", ISFLAC_JSON, load_isflac),
-        ("soundaudit", SOUNDAUDIT_DB, load_soundaudit),
-        ("audiocheckr", AUDIOCHECKR_JSON, load_audiocheckr),
-    ):
-        if path.exists():
-            tool_preds.append((name, loader()))
-        else:
-            print(f"skip {name}: {path} not found (run with --collect)", file=sys.stderr)
+    if args.combine:
+        corpora = combined_corpora()
+        CFG = BenchConfig(
+            manifest=DEFAULT_MANIFEST,
+            out_dir=args.out_dir.resolve(),
+            bench_dir=DEFAULT_BENCH_DIR,
+        )
+        entries, tool_preds = merge_tool_preds(corpora)
+        corpus_labels = [str(c.manifest.relative_to(ROOT)) for c in corpora]
+    else:
+        CFG = BenchConfig(
+            manifest=args.manifest.resolve(),
+            out_dir=args.out_dir.resolve(),
+            bench_dir=args.bench_dir.resolve(),
+        )
+        entries = load_manifest()
+        if args.collect:
+            collect_isflac(entries)
+            collect_soundaudit(entries)
+            collect_audiocheckr(entries)
 
-    summary = build_summary(tool_preds)
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    (OUT_DIR / "comparison.json").write_text(json.dumps(summary, indent=2) + "\n")
+        missing = []
+        if not CFG.flaccheck_scan.exists():
+            missing.append(str(CFG.flaccheck_scan))
+        if not CFG.flac_detective.exists():
+            missing.append(str(CFG.flac_detective))
+        if missing:
+            print("Missing prerequisite outputs:", ", ".join(missing), file=sys.stderr)
+            print("See README benchmarks section.", file=sys.stderr)
+            return 1
+
+        tool_preds = [
+            ("flaccheck", load_flaccheck()),
+            ("FLAC Detective", load_flac_detective()),
+        ]
+        for name, path, loader in (
+            ("isflac", CFG.isflac_json, load_isflac),
+            ("soundaudit", CFG.soundaudit_db, load_soundaudit),
+            ("audiocheckr", CFG.audiocheckr_json, load_audiocheckr),
+        ):
+            if path.exists():
+                tool_preds.append((name, loader()))
+            else:
+                print(f"skip {name}: {path} not found (run with --collect)", file=sys.stderr)
+        corpus_labels = None
+
+    summary = build_summary(tool_preds, entries, corpora=corpus_labels)
+    CFG.out_dir.mkdir(parents=True, exist_ok=True)
+    (CFG.out_dir / "comparison.json").write_text(json.dumps(summary, indent=2) + "\n")
 
     try:
         import matplotlib  # noqa: F401

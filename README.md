@@ -172,7 +172,7 @@ Upload FLAC, WAV, or other supported files and get instant verdicts with spectra
 
 ## Benchmarks
 
-Compared on the same **121-file real-music corpus** (11 genuine FLAC references + 110 lossy→FLAC transcodes via ffmpeg: MP3, AAC, Opus, Vorbis). All tools ran locally on identical files; a positive call means **fake / suspicious / transcode detected**. Versions: flaccheck 0.1, [FLAC Detective](https://pypi.org/project/flac-detective/) 1.7, [isflac](https://github.com/temidaradev/isflac) 0.1.4, [soundaudit](https://pypi.org/project/soundaudit/) 0.1.2, [audiocheckr](https://github.com/abalajiksh/audiocheckr) 0.3.7.
+Compared on **two independent real-music corpora** pooled into **253 labeled files** (23 genuine FLAC references + 230 lossy→FLAC transcodes via ffmpeg: MP3, AAC, Opus, Vorbis). Corpus v1 uses archival/classical sources; corpus v2 uses fresh etree live and netlabel FLACs from the Internet Archive (no overlap). All tools ran locally on identical files; a positive call means **fake / suspicious / transcode detected**. Versions: flaccheck 0.1, [FLAC Detective](https://pypi.org/project/flac-detective/) 1.7, [isflac](https://github.com/temidaradev/isflac) 0.1.4, [soundaudit](https://pypi.org/project/soundaudit/) 0.1.2, [audiocheckr](https://github.com/abalajiksh/audiocheckr) 0.3.7.
 
 **Not included:** Spek (manual spectrogram only), auCDtect (legacy, hard to run on modern Linux).
 
@@ -182,15 +182,15 @@ Compared on the same **121-file real-music corpus** (11 genuine FLAC references 
 
 | Tool | Precision | Recall | False positives on genuine |
 |------|-----------|--------|----------------------------|
-| **flaccheck** (balanced) | **100%** | **78%** | **0%** (0/9 judged) |
-| [audiocheckr](https://github.com/abalajiksh/audiocheckr) 0.3.7 | 92% | **83%** | 73% (8/11 judged) |
-| [isflac](https://github.com/temidaradev/isflac) 0.1.4 | 98% | 57% | 9% (1/11 judged) |
-| [FLAC Detective](https://pypi.org/project/flac-detective/) 1.7 | 98% | 47% | 9% (1/11 judged) |
+| **flaccheck** (balanced) | **99%** | **85%** | **4%** (1/23) |
+| [audiocheckr](https://github.com/abalajiksh/audiocheckr) 0.3.7 | 93% | **82%** | 65% (15/23) |
+| [isflac](https://github.com/temidaradev/isflac) 0.1.4 | 95% | 57% | 30% (7/23) |
+| [FLAC Detective](https://pypi.org/project/flac-detective/) 1.7 | 97% | 47% | 17% (4/23) |
 | [soundaudit](https://pypi.org/project/soundaudit/) 0.1.2 | — | 0% | 0% |
 
-**Takeaway:** flaccheck is the only tool with **zero false positives** on genuine masters in this corpus. audiocheckr catches more transcodes overall but flags most genuine references as fake. soundaudit's spectral pass did not detect any transcodes here — its ffmpeg filter chain fails on ffmpeg 7.x (`highpass=poles=4` is out of range), so treat its 0% recall as an environment limitation, not a fair capability score.
+**Takeaway:** flaccheck has the **highest precision** (one false positive across 23 genuine references) while matching or beating alternatives on recall. audiocheckr catches more borderline transcodes but flags most genuine references as fake. soundaudit's spectral pass did not detect any transcodes here — its ffmpeg filter chain fails on ffmpeg 7.x (`highpass=poles=4` is out of range), so treat its 0% recall as an environment limitation, not a fair capability score.
 
-flaccheck abstains with `INCONCLUSIVE` on 12 band-limited files rather than guessing (counted as recall misses).
+flaccheck abstains with `INCONCLUSIVE` on 22 band-limited files rather than guessing (counted as recall misses).
 
 ### Recall by source codec
 
@@ -198,43 +198,44 @@ flaccheck abstains with `INCONCLUSIVE` on 12 band-limited files rather than gues
 
 | Codec | flaccheck | audiocheckr | isflac | FLAC Detective |
 |-------|-----------|-------------|--------|----------------|
-| MP3 | **98%** | 80% | 59% | 66% |
-| AAC | 36% | **76%** | 36% | 21% |
-| Opus | **100%** | **100%** | 91% | 59% |
-| Vorbis | 67% | **82%** | 45% | 27% |
+| MP3 | **98%** | 75% | 43% | 63% |
+| AAC | 55% | **78%** | 55% | 35% |
+| Opus | **98%** | **100%** | 91% | 37% |
+| Vorbis | **85%** | 83% | 48% | 43% |
 
 ### False alarms on authentic sources
 
 ![False positive rate on genuine FLAC](docs/benchmarks/genuine_false_positive_rate.png)
 
-Lower is better. flaccheck returned `INCONCLUSIVE` on 2 genuine 78&nbsp;rpm masters (narrow bandwidth) instead of marking them transcodes.
+Lower is better. flaccheck returned `INCONCLUSIVE` on narrow-bandwidth genuine masters instead of marking them transcodes.
 
 ### Reproduce
 
 ```bash
-# 1. Build corpus (needs ffmpeg + source FLACs)
-./datasets/generate_realistic.sh /path/to/sources datasets/output/realistic
+# 1. Build corpora (needs ffmpeg)
+./datasets/generate_realistic.sh /path/to/v1/sources datasets/output/realistic
+./datasets/download_benchmark_v2.sh
+./datasets/generate_realistic.sh datasets/benchmark_v2_sources datasets/output/benchmark_v2
 
-# 2. Primary tools
+# 2. Primary tools (repeat per corpus, outputs in benchmarks/ and benchmarks_v2/)
 cargo build --release -p flaccheck
 ./target/release/flaccheck scan datasets/output/realistic --format json --quiet \
   -o benchmarks/flaccheck_per_file.json --workers 8
 flac-detective --format json --output benchmarks/flac_detective.json datasets/output/realistic
+# same for datasets/output/benchmark_v2 → benchmarks_v2/
 
-# 3. Additional comparators (isflac, soundaudit, audiocheckr)
+# 3. Additional comparators (isflac, soundaudit, audiocheckr) — per corpus
 cargo install isflac
 pip install soundaudit matplotlib
 git clone https://github.com/abalajiksh/audiocheckr benchmarks/vendor/audiocheckr
 # isolate from workspace: prepend `[workspace]\n` to benchmarks/vendor/audiocheckr/Cargo.toml
 cargo build --release --manifest-path benchmarks/vendor/audiocheckr/Cargo.toml
 
-python3 scripts/benchmark_compare.py --collect   # slow (~5 min)
-# or, if raw outputs already exist:
-python3 scripts/benchmark_compare.py
+python3 scripts/benchmark_compare.py --collect   # per corpus; slow (~5 min each)
+python3 scripts/benchmark_compare.py --combine   # merged report + charts
 ```
 
 Raw numbers: [`docs/benchmarks/comparison.json`](docs/benchmarks/comparison.json)
-
 Optional ML refinement for borderline files:
 
 ```bash
@@ -252,7 +253,7 @@ Decode and inspect the spectrum. Lossy transcodes show a sharp **frequency cliff
 
 ### Can flaccheck detect MP3 converted to FLAC?
 
-Yes. MP3 transcodes are the strongest case — **98% recall** in our benchmark corpus (see [Benchmarks](#benchmarks)).
+Yes. MP3 transcodes are the strongest case — **98% recall** on the combined benchmark corpora (see [Benchmarks](#benchmarks)).
 
 ### Does flaccheck work on Apple Lossless (ALAC) or WAV?
 
@@ -260,7 +261,7 @@ Yes. Any container format flaccheck can decode is analyzed the same way. The que
 
 ### Is flaccheck better than Spek or Audacity?
 
-Spek shows a spectrogram for manual inspection. flaccheck **automates** multi-tier detection, scores confidence, batch-scans directories, and outputs structured reports (JSON/CSV/HTML). On our benchmark corpus, flaccheck is the only automated tool with **zero false positives** on genuine masters — see [Benchmarks](#benchmarks). Use both: flaccheck for library sweeps, a spectrogram viewer to visually confirm edge cases.
+Spek shows a spectrogram for manual inspection. flaccheck **automates** multi-tier detection, scores confidence, batch-scans directories, and outputs structured reports (JSON/CSV/HTML). On our combined benchmark corpora, flaccheck has the **highest precision** among automated tools (one false positive on 23 genuine references) — see [Benchmarks](#benchmarks). Use both: flaccheck for library sweeps, a spectrogram viewer to visually confirm edge cases.
 
 ### Does it upload my music anywhere?
 
