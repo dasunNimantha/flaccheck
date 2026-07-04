@@ -56,6 +56,9 @@ pub struct Thresholds {
     pub quant_promote_suspicious: f64,
     pub abstain_edge_ceiling_ratio: f64,
     pub abstain_edge_ceiling_max_hz: f64,
+    /// Brick-wall strength at/above which a sharp cliff to a silent floor is treated as a
+    /// definitive lossy fingerprint (bypasses band-limited / low-HF abstention).
+    pub brick_wall_transcoded_min: f64,
 
     // --- Evidence weights ---
     pub weight_brick_wall: f64,
@@ -87,9 +90,14 @@ impl Default for Thresholds {
             vorbis_rolloff_max_db_per_oct: 45.0,
             lossy_codec_max_sample_rate_hz: 48000,
 
-            quant_residual_high: 1e-4,
-            quant_residual_mid: 5e-4,
-            quant_residual_low: 2e-3,
+            // After RMS-normalization the MDCT grid residual clusters near the
+            // uniform-quantization variance (~1/12 ≈ 0.083) for genuine and lossy material
+            // alike, so it only carries information when a file's residual is anomalously
+            // low. These bands sit well below the empirical genuine floor (~0.065) so the
+            // detector abstains on normal music instead of raising false positives.
+            quant_residual_high: 0.010,
+            quant_residual_mid: 0.020,
+            quant_residual_low: 0.030,
             quant_likelihood_high: 0.85,
             quant_likelihood_mid: 0.6,
             quant_likelihood_low: 0.35,
@@ -117,6 +125,7 @@ impl Default for Thresholds {
             quant_promote_suspicious: 0.55,
             abstain_edge_ceiling_ratio: 0.62,
             abstain_edge_ceiling_max_hz: 13000.0,
+            brick_wall_transcoded_min: 0.55,
 
             weight_brick_wall: 1.0,
             weight_steepness: 0.8,

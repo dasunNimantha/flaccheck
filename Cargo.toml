@@ -7,6 +7,7 @@ members = [
     "crates/lossless-scan-detectors",
     "crates/lossless-scan-ml",
     "crates/lossless-scan-testkit",
+    "crates/lossless-scan-web",
 ]
 
 [workspace.package]
@@ -30,6 +31,10 @@ realfft = "3.4"
 ndarray = "0.16"
 minijinja = "2.7"
 tract-onnx = "0.21"
+axum = { version = "0.8", features = ["multipart"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "fs"] }
+tower-http = { version = "0.6", features = ["cors", "set-header"] }
+mime_guess = "2"
 
 [profile.release]
 lto = true

@@ -170,35 +170,91 @@ fn pqmf_granule_periodicity(samples: &[f32], thresholds: &Thresholds) -> f64 {
     }
 }
 
+// Fixed integer grid the companded, normalized coefficients are projected onto.
+const GRID: f64 = 4.0;
+// Coefficients below this scaled magnitude round to ~0 and carry no grid information.
+const MIN_MAG: f64 = 0.5;
+// Minimum significant coefficients per block for the residual to be meaningful.
+const MIN_COUNT: usize = 64;
+const MDCT_N: usize = 1024;
+const NUM_BLOCKS: usize = 6;
+
+/// Amplitude-invariant MDCT quantization-grid residual search.
+///
+/// The raw residual of `|c|^0.75` is proportional to signal amplitude, so quiet or
+/// narrow-band lossless material (few significant coefficients, most near zero) collapses
+/// to an artificially tiny residual and masquerades as a transcode. To make the grid test
+/// scale-invariant we RMS-normalize each block's companded coefficients, only score those
+/// whose scaled magnitude is large enough that rounding to an integer is a meaningful
+/// operation, and average across several blocks. Blocks with too few significant
+/// coefficients (silence / narrow band) abstain instead of reporting a spuriously low
+/// residual. The MDCT of each block is computed once and reused across scalefactor offsets.
 fn search_quant_residual(samples: &[f32], offsets: &[f64]) -> (f64, f64) {
+    if samples.len() < MDCT_N {
+        return (f64::MAX, 0.0);
+    }
+    let usable = samples.len() - MDCT_N;
+
+    // Precompute companded, RMS-normalized magnitudes per block once.
+    let mut block_mags: Vec<Vec<f64>> = Vec::with_capacity(NUM_BLOCKS);
+    for b in 0..NUM_BLOCKS {
+        let start = if NUM_BLOCKS > 1 {
+            usable * b / (NUM_BLOCKS - 1)
+        } else {
+            usable / 2
+        };
+        let block = &samples[start..start + MDCT_N];
+        let coeffs = type_iv_mdct(block);
+        let energy: f64 = coeffs.iter().map(|&c| c * c).sum();
+        let rms = (energy / coeffs.len() as f64).sqrt();
+        if rms < 1e-7 {
+            continue; // silent block
+        }
+        // Store |c|/rms companded once; the offset only rescales these at scoring time.
+        let mags: Vec<f64> = coeffs
+            .iter()
+            .map(|&c| (c.abs() / rms).powf(0.75) * GRID)
+            .collect();
+        block_mags.push(mags);
+    }
+
+    if block_mags.is_empty() {
+        return (f64::MAX, 0.0);
+    }
+
     let mut best_r = f64::MAX;
     let mut best_off = 0.0;
     for &off in offsets {
-        let r = mdct_quant_residual_energy(samples, off);
+        let gain = 2.0_f64.powf(off / 4.0);
+        let mut total = 0.0f64;
+        let mut blocks_used = 0usize;
+        for mags in &block_mags {
+            let mut residual_sum = 0.0f64;
+            let mut count = 0usize;
+            for &m in mags {
+                let scaled = m * gain;
+                if scaled < MIN_MAG {
+                    continue;
+                }
+                let err = scaled - scaled.round();
+                residual_sum += err * err;
+                count += 1;
+            }
+            if count >= MIN_COUNT {
+                total += residual_sum / count as f64;
+                blocks_used += 1;
+            }
+        }
+        if blocks_used == 0 {
+            continue;
+        }
+        let r = total / blocks_used as f64;
         if r < best_r {
             best_r = r;
             best_off = off;
         }
     }
     (best_r, best_off)
-}
-
-fn mdct_quant_residual_energy(samples: &[f32], scalefactor_offset: f64) -> f64 {
-    const N: usize = 1024;
-    let start = samples.len() / 4;
-    if start + N > samples.len() {
-        return f64::MAX;
-    }
-    let block = &samples[start..start + N];
-    let coeffs = type_iv_mdct(block);
-    let mut residual_sum = 0.0f64;
-    for &c in &coeffs {
-        let scaled = c.abs().powf(0.75) * (2.0_f64.powf(scalefactor_offset / 4.0));
-        let rounded = scaled.round();
-        let err = scaled - rounded;
-        residual_sum += err * err;
-    }
-    residual_sum / coeffs.len() as f64
 }
 
 fn type_iv_mdct(x: &[f32]) -> Vec<f64> {

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>lossless-scan</title>
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="2"/><path d="M10 20V12l6 4 6-4v8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div>
+          <h1>lossless-scan</h1>
+          <p class="tagline">Verify your FLACs are truly lossless — not MP3/AAC in disguise</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button type="button" id="btn-help" class="btn btn-ghost" title="How it works">?</button>
+      </div>
+    </header>
+
+    <dialog id="help-dialog" class="dialog">
+      <div class="dialog-inner card">
+        <h2>How it works</h2>
+        <p>lossless-scan analyzes audio fingerprints to detect transcoded files sold as lossless.</p>
+        <ul class="help-list">
+          <li><strong>Fast</strong> — spectral cutoff + hi-res checks (~seconds per file)</li>
+          <li><strong>Balanced</strong> — adds quantization + artifacts (recommended)</li>
+          <li><strong>Max</strong> — exhaustive search, slowest but most thorough</li>
+        </ul>
+        <div class="legend">
+          <span class="badge GENUINE">GENUINE</span> No lossy fingerprint
+          <span class="badge SUSPICIOUS">SUSPICIOUS</span> Some indicators
+          <span class="badge TRANSCODED">TRANSCODED</span> Strong lossy signal
+          <span class="badge INCONCLUSIVE">INCONCLUSIVE</span> Too band-limited
+        </div>
+        <button type="button" class="btn btn-primary" id="help-close">Got it</button>
+      </div>
+    </dialog>
+
+    <main class="layout">
+      <section class="panel panel-upload">
+        <h2 class="panel-title">Add files</h2>
+
+        <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Drop audio files or click to browse">
+          <input type="file" id="file-input" multiple accept=".flac,.wav,.mp3,.m4a,.aac,.ogg,.opus,.aiff,.alac,.ape,.wv,audio/*" aria-hidden="true">
+          <div class="dropzone-inner">
+            <div class="drop-icon" aria-hidden="true">↑</div>
+            <p class="drop-title">Drop audio files here</p>
+            <p class="drop-hint">FLAC · WAV · MP3 · AAC · OGG · AIFF · ALAC</p>
+          </div>
+        </div>
+
+        <div id="queue-section" class="queue-section hidden">
+          <div class="queue-header">
+            <span id="queue-count">0 files</span>
+            <button type="button" id="btn-clear-queue" class="btn btn-ghost btn-sm">Clear all</button>
+          </div>
+          <ul id="queue-list" class="queue-list"></ul>
+        </div>
+
+        <div class="settings card">
+          <h3 class="settings-title">Scan settings</h3>
+
+          <fieldset class="mode-group">
+            <legend>Depth</legend>
+            <div class="mode-pills" role="radiogroup" aria-label="Scan mode">
+              <label class="mode-pill"><input type="radio" name="mode" value="fast"><span>Fast</span></label>
+              <label class="mode-pill"><input type="radio" name="mode" value="balanced" checked><span>Balanced</span></label>
+              <label class="mode-pill"><input type="radio" name="mode" value="max"><span>Max</span></label>
+            </div>
+            <p id="mode-desc" class="mode-desc">Recommended — quantization + artifact detectors on suspects</p>
+          </fieldset>
+
+          <div class="toggles">
+            <label class="toggle">
+              <input type="checkbox" id="explain" checked>
+              <span class="toggle-track"></span>
+              <span class="toggle-label">Show detector evidence</span>
+            </label>
+            <label class="toggle">
+              <input type="checkbox" id="ml">
+              <span class="toggle-track"></span>
+              <span class="toggle-label">ML borderline refinement</span>
+            </label>
+          </div>
+        </div>
+
+        <button type="button" id="btn-scan" class="btn btn-primary btn-scan" disabled>
+          <span class="btn-label">Analyze files</span>
+        </button>
+      </section>
+
+      <section class="panel panel-results">
+        <div id="empty-state" class="empty-state">
+          <div class="empty-icon" aria-hidden="true">◎</div>
+          <h2>Results will appear here</h2>
+          <p>Add audio files on the left, then click <strong>Analyze files</strong>.</p>
+        </div>
+
+        <div id="loading" class="loading hidden" aria-live="polite">
+          <div class="spinner" aria-hidden="true"></div>
+          <p id="loading-text">Analyzing…</p>
+          <div class="progress-track"><div id="progress-bar" class="progress-bar"></div></div>
+        </div>
+
+        <div id="results-panel" class="results-panel hidden">
+          <div class="results-header">
+            <div>
+              <h2 class="panel-title">Results</h2>
+              <p id="results-meta" class="results-meta"></p>
+            </div>
+            <div class="results-actions">
+              <button type="button" id="btn-export" class="btn btn-ghost btn-sm" title="Download JSON report">↓ Export</button>
+              <button type="button" id="btn-rescan" class="btn btn-ghost btn-sm" title="Re-run with current settings">↻ Rescan</button>
+            </div>
+          </div>
+
+          <div id="alert-banner" class="alert-banner hidden"></div>
+
+          <div id="summary" class="summary">
+            <div class="stat card stat-total"><b id="stat-total">0</b><span>analyzed</span></div>
+            <div class="stat card stat-flagged"><b id="stat-flagged">0</b><span>flagged</span></div>
+            <div class="stat card stat-genuine"><b id="stat-genuine">0</b><span>genuine</span></div>
+            <div class="stat card stat-inconclusive"><b id="stat-inconclusive">0</b><span>inconclusive</span></div>
+          </div>
+
+          <div class="toolbar">
+            <input type="search" id="search" class="search" placeholder="Filter by filename…" aria-label="Filter results">
+            <div class="filter-tabs" role="tablist">
+              <button type="button" class="filter-tab active" data-filter="all">All</button>
+              <button type="button" class="filter-tab" data-filter="flagged">Flagged</button>
+              <button type="button" class="filter-tab" data-filter="GENUINE">Genuine</button>
+              <button type="button" class="filter-tab" data-filter="INCONCLUSIVE">Inconclusive</button>
+            </div>
+            <select id="sort" class="sort-select" aria-label="Sort results">
+              <option value="verdict">Sort: verdict severity</option>
+              <option value="confidence-desc">Sort: confidence ↓</option>
+              <option value="confidence-asc">Sort: confidence ↑</option>
+              <option value="name">Sort: filename A–Z</option>
+            </select>
+          </div>
+
+          <div id="results" class="results-list"></div>
+
+          <section id="issues" class="issues hidden">
+            <h3>Skipped &amp; errors</h3>
+            <ul id="issues-list"></ul>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>Spectral · MDCT quantization · artifact · hi-res detectors</span>
+    </footer>
+  </div>
+  <script src="/assets/app.js"></script>
+</body>
+</html>

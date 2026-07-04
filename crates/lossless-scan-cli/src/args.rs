@@ -23,6 +23,10 @@ pub enum Command {
     Scan(ScanArgs),
     /// Evaluate precision/recall against a labeled JSON manifest
     Benchmark(BenchmarkArgs),
+    /// Dump detector feature vectors for ML training (JSONL)
+    Features(FeaturesArgs),
+    /// Launch local web UI in the browser
+    Serve(ServeArgs),
 }
 
 #[derive(Parser, Debug)]
@@ -42,6 +46,31 @@ pub struct BenchmarkArgs {
 
     #[command(flatten)]
     pub opts: OutputOpts,
+}
+
+#[derive(Parser, Debug)]
+pub struct FeaturesArgs {
+    /// JSON manifest file (not audio). Each entry: `{"path": "...", "label": "genuine"|"transcoded"}`
+    #[arg(value_name = "MANIFEST.json")]
+    pub manifest: PathBuf,
+
+    #[command(flatten)]
+    pub opts: OutputOpts,
+}
+
+#[derive(Parser, Debug)]
+pub struct ServeArgs {
+    /// Host address to bind
+    #[arg(long, default_value = "127.0.0.1")]
+    pub host: String,
+
+    /// TCP port
+    #[arg(short, long, default_value_t = 8787)]
+    pub port: u16,
+
+    /// Path to ML model (`.json` classical or `.onnx` CNN)
+    #[arg(long, value_name = "FILE")]
+    pub model: Option<PathBuf>,
 }
 
 #[derive(Parser, Debug)]
@@ -78,7 +107,7 @@ pub struct OutputOpts {
     #[arg(long, global = true)]
     pub ml: bool,
 
-    /// Path to ONNX model weights
+    /// Path to ML model weights (`.json` classical or `.onnx` CNN)
     #[arg(long, global = true, value_name = "FILE")]
     pub model: Option<PathBuf>,
 }

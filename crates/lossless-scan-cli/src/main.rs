@@ -1,7 +1,9 @@
 use clap::Parser;
 use indicatif::ParallelProgressIterator;
-use lossless_scan::args::{BenchmarkArgs, Command, LegacyScanConfig, OutputOpts, ScanArgs};
+use lossless_scan::args::{BenchmarkArgs, Command, FeaturesArgs, LegacyScanConfig, OutputOpts, ScanArgs, ServeArgs};
 use lossless_scan::benchmark::run_benchmark;
+use lossless_scan::features::run_features;
+use lossless_scan_web::ServerConfig;
 use lossless_scan::report::{OutputFormat, ScanReport};
 use lossless_scan::scan::{analyze_one, FileOutcome};
 use lossless_scan::ui::{ColorMode, Ui};
@@ -36,6 +38,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     match cli.command {
         Command::Scan(args) => run_scan(&args),
         Command::Benchmark(args) => run_benchmark_cmd(&args),
+        Command::Features(args) => run_features_cmd(&args),
+        Command::Serve(args) => run_serve_cmd(&args),
     }
 }
 
@@ -120,4 +124,19 @@ fn run_benchmark_cmd(args: &BenchmarkArgs) -> Result<(), Box<dyn std::error::Err
     let ui = ui_from_opts(&args.opts);
     let legacy = LegacyScanConfig::from(&args.opts);
     run_benchmark(&args.manifest, &legacy, &ui)
+}
+
+fn run_features_cmd(args: &FeaturesArgs) -> Result<(), Box<dyn std::error::Error>> {
+    let ui = ui_from_opts(&args.opts);
+    let legacy = LegacyScanConfig::from(&args.opts);
+    run_features(&args.manifest, &legacy, &ui)
+}
+
+fn run_serve_cmd(args: &ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
+    let rt = tokio::runtime::Runtime::new()?;
+    rt.block_on(lossless_scan_web::run_server(ServerConfig {
+        host: args.host.clone(),
+        port: args.port,
+        model_path: args.model.as_ref().map(|p| p.display().to_string()),
+    }))
 }

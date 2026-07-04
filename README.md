@@ -8,7 +8,8 @@ CLI for **lossless audio authenticity analysis** — detect fake lossless files 
 - **Multiple output formats** — text, JSON, CSV, and HTML reports
 - **Parallel scanning** — configurable worker count for directories
 - **Broad decode support** — FLAC, WAV, AIFF, ALAC, AAC, MP3, Vorbis via symphonia; optional ffmpeg for APE, WavPack, Opus
-- **Optional ML layer** — ONNX borderline classifier (`--ml`) when built with the `ml` feature
+- **Optional ML layer** — classical JSON model (default) or ONNX mel-CNN (`--features ml`) for borderline refinement
+- **Feature dump** — export labeled evidence vectors for training (`features` subcommand)
 - **Benchmark harness** — evaluate against labeled manifests for regression tracking
 
 ### Detection tiers
@@ -51,9 +52,13 @@ cargo install --path crates/lossless-scan-cli --features ml
 
 ## Usage
 
-Commands use subcommands: `scan` (analyze files) and `benchmark` (evaluate a manifest).
+Commands use subcommands: `scan` (analyze files), `benchmark` (evaluate a manifest), `features` (dump ML training data), and `serve` (web UI).
 
 ```bash
+# Web UI — drag-and-drop in browser
+lossless-scan serve
+# → http://127.0.0.1:8787
+
 # Scan a single file (colored table output)
 lossless-scan scan track.flac
 
@@ -72,8 +77,14 @@ lossless-scan scan album.flac --format json --quiet -o results.json
 # Disable colors (CI / logs)
 lossless-scan scan album.flac --color never
 
-# Optional ML (requires --features ml build and model weights)
+# Classical ML borderline refinement (no extra build flags)
+lossless-scan scan --ml --model models/classical_model.json track.flac
+
+# ONNX mel-CNN (requires --features ml build)
 lossless-scan scan --ml --model models/borderline.onnx track.flac
+
+# Dump features for training
+lossless-scan features datasets/output/calibration/manifest.json --mode max -o features.jsonl
 
 # Benchmark against a labeled manifest
 lossless-scan benchmark datasets/output/synthetic/manifest.json --mode balanced -o metrics.json

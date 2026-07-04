@@ -88,11 +88,19 @@ pub fn analyze_pcm(
     let (transcode_verdict, confidence, codec_guess, est_bitrate) =
         fuse_evidence(&all_evidence, thresholds);
 
+    // The quant-tier heuristics (MP3 PQMF, MDCT residual) are unreliable on their own and
+    // misfire on genuine acoustic/live material. A real lossy transcode always leaves a
+    // spectral low-pass cutoff below Nyquist, so quant evidence may only *corroborate* a
+    // detected cutoff — it must never independently promote full-bandwidth audio.
+    let spectral_cutoff_present = spectral.cutoff_hz < nyquist * 0.97;
     let transcode_verdict = if spectral.full_band && artifacts_r.suspicion < 0.45 {
         transcode_verdict
-    } else if quant_r.transcode_likelihood > thresholds.quant_promote_transcoded {
+    } else if spectral_cutoff_present
+        && quant_r.transcode_likelihood > thresholds.quant_promote_transcoded
+    {
         TranscodeVerdict::Transcoded
-    } else if quant_r.transcode_likelihood > thresholds.quant_promote_suspicious
+    } else if spectral_cutoff_present
+        && quant_r.transcode_likelihood > thresholds.quant_promote_suspicious
         && transcode_verdict == TranscodeVerdict::Genuine
     {
         TranscodeVerdict::Suspicious

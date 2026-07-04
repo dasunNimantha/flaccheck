@@ -8,10 +8,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 
-#[derive(Debug, Deserialize)]
-struct ManifestEntry {
-    path: String,
-    label: String,
+#[derive(Debug, Deserialize, Clone)]
+pub struct ManifestEntry {
+    pub path: String,
+    pub label: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -66,7 +66,7 @@ pub fn validate_manifest_path(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn load_manifest(path: &Path) -> Result<Vec<ManifestEntry>, String> {
+pub fn load_manifest(path: &Path) -> Result<Vec<ManifestEntry>, String> {
     validate_manifest_path(path)?;
 
     let data = std::fs::read(path).map_err(|e| format!("cannot read {}: {e}", path.display()))?;
@@ -122,8 +122,8 @@ pub fn run_benchmark(
     let mode: ScanMode = args.mode.into();
     let config = lossless_scan_core::AnalysisConfig::for_mode(mode);
     let ml = MlClassifier::new(&MlConfig {
-        enabled: false,
-        model_path: None,
+        enabled: args.ml,
+        model_path: args.model.as_ref().map(|p| p.display().to_string()),
     });
 
     let mut tp = 0usize;

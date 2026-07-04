@@ -376,43 +376,84 @@ fn detect_derivative_cutoff(
     (best_cutoff, best_strength)
 }
 
+/// Brick-wall / lossy cutoff detector.
+///
+/// Lossy codecs low-pass the signal, leaving a sharp drop from the audible band to a
+/// near-silent floor. The transition can span several hundred Hz (tens of FFT bins), so
+/// adjacent narrow windows miss it. Instead we compare a wide reference band below the
+/// candidate against a wide band above it, separated by a guard gap, and treat the drop
+/// as a cliff when the upper band is both far below the lower band AND flat (a floor).
+/// The floor test is *relative* to the lower band (loudness-independent), unlike the old
+/// absolute −42 dB gate which failed on loud masters.
 fn detect_cutoff(
     freqs: &[f64],
     psd_db: &[f64],
     nyquist: f64,
     thresholds: &Thresholds,
 ) -> (f64, f64) {
+    if freqs.len() < 8 {
+        return (nyquist, 0.0);
+    }
+    const GAP_HZ: f64 = 250.0;
+    const SPAN_HZ: f64 = 1500.0;
+    // Minimum drop from signal band to floor for a lossy cliff (relative dB).
+    let min_drop = thresholds.brick_wall_drop_db.max(28.0);
+
     let mut best_cutoff = nyquist;
     let mut best_strength = 0.0f64;
-    let start_idx = freqs.iter().position(|&f| f >= 8000.0).unwrap_or(0);
-    let end_idx = freqs
-        .iter()
-        .position(|&f| f >= nyquist * 0.98)
-        .unwrap_or(freqs.len());
 
-    for i in start_idx..end_idx.saturating_sub(16) {
-        let f = freqs[i];
-        if f < 10000.0 {
-            continue;
-        }
-        let below_mean: f64 = psd_db[i.saturating_sub(8)..i].iter().sum::<f64>() / 8.0;
-        let above_slice = &psd_db[i + 1..(i + 16).min(psd_db.len())];
-        if above_slice.len() < 8 {
-            continue;
-        }
-        let above_mean: f64 = above_slice.iter().sum::<f64>() / above_slice.len() as f64;
-        let drop = below_mean - above_mean;
-        if drop > thresholds.brick_wall_drop_db && silent_floor_above(above_slice) {
-            let strength = ((drop - thresholds.brick_wall_drop_db)
-                / thresholds.brick_wall_strength_divisor)
-                .clamp(0.0, 1.0);
-            if strength > best_strength {
-                best_strength = strength;
-                best_cutoff = f;
+    let mut f = 10000.0;
+    while f < nyquist * 0.97 {
+        let below = band_mean(freqs, psd_db, f - SPAN_HZ, f - GAP_HZ);
+        let above = band_mean_std(freqs, psd_db, f + GAP_HZ, f + SPAN_HZ);
+        if let (Some(below_mean), Some((above_mean, above_std))) = (below, above) {
+            let drop = below_mean - above_mean;
+            // Cliff: large relative drop to a flat (low-variance) floor.
+            if drop > min_drop && above_std < 8.0 {
+                let strength =
+                    ((drop - min_drop) / thresholds.brick_wall_strength_divisor).clamp(0.0, 1.0);
+                // Prefer the lowest-frequency (earliest) strong cliff.
+                if strength > best_strength + 0.05
+                    || (strength > 0.0 && best_strength == 0.0)
+                {
+                    best_strength = strength;
+                    best_cutoff = f;
+                }
             }
         }
+        f += 100.0;
     }
     (best_cutoff, best_strength)
+}
+
+/// Mean of `psd_db` over [lo, hi) Hz, or None if too few bins.
+fn band_mean(freqs: &[f64], psd_db: &[f64], lo: f64, hi: f64) -> Option<f64> {
+    let vals: Vec<f64> = freqs
+        .iter()
+        .zip(psd_db.iter())
+        .filter(|(f, _)| **f >= lo && **f < hi)
+        .map(|(_, p)| *p)
+        .collect();
+    if vals.len() < 4 {
+        return None;
+    }
+    Some(vals.iter().sum::<f64>() / vals.len() as f64)
+}
+
+/// (mean, std) of `psd_db` over [lo, hi) Hz, or None if too few bins.
+fn band_mean_std(freqs: &[f64], psd_db: &[f64], lo: f64, hi: f64) -> Option<(f64, f64)> {
+    let vals: Vec<f64> = freqs
+        .iter()
+        .zip(psd_db.iter())
+        .filter(|(f, _)| **f >= lo && **f < hi)
+        .map(|(_, p)| *p)
+        .collect();
+    if vals.len() < 4 {
+        return None;
+    }
+    let mean = vals.iter().sum::<f64>() / vals.len() as f64;
+    let var = vals.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / vals.len() as f64;
+    Some((mean, var.sqrt()))
 }
 
 fn silent_floor_above(psd_db_above: &[f64]) -> bool {

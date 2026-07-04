@@ -1,7 +1,11 @@
 /target/
 /datasets/output/
+/datasets/genuine_diverse/
+/datasets/realistic_sources/
 *.onnx
 *.pt
+features.jsonl
+models/classical_model.json
 __pycache__/
 .venv/
 research/.venv/

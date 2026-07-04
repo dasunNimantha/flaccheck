@@ -20,6 +20,23 @@ pub fn fuse_evidence(
 
     let info_score = spectral_information_score(evidence);
 
+    let brick_wall = evidence
+        .iter()
+        .find(|e| e.signal == "brick_wall")
+        .map(|e| e.value)
+        .unwrap_or(0.0);
+    let codec_certainty_hint = evidence
+        .iter()
+        .find(|e| e.signal == "codec_guess")
+        .map(|e| e.value)
+        .unwrap_or(0.0);
+    // A sharp spectral cliff to a silent floor below Nyquist is a definitive lossy
+    // fingerprint, no matter how little high-frequency energy the track carries (a
+    // bass-heavy transcode still has almost no HF energy). Such files must bypass the
+    // band-limited / low-info abstention paths below, which otherwise mask real transcodes.
+    let strong_cliff = brick_wall >= thresholds.brick_wall_transcoded_min
+        || (brick_wall >= 0.35 && codec_certainty_hint >= 0.6);
+
     let full_band = evidence
         .iter()
         .any(|e| e.signal == "full_band" && e.value >= 1.0);
@@ -30,7 +47,7 @@ pub fn fuse_evidence(
         .unwrap_or(0.0);
     let sufficient_bandwidth = full_band || edge_hz >= thresholds.sufficient_bandwidth_hz;
 
-    if !sufficient_bandwidth {
+    if !sufficient_bandwidth && !strong_cliff {
         if let Some(e) = evidence.iter().find(|e| e.signal == "abstain_band_limited") {
             if e.value >= 1.0 {
                 return (TranscodeVerdict::Inconclusive, 0.0, None, None);
@@ -63,6 +80,10 @@ pub fn fuse_evidence(
                 | "est_bitrate_kbps"
                 | "ml_abstain"
                 | "ml_noop"
+                // Steepness (dB/oct) is a raw magnitude, not a [0,1] score; its transcode
+                // signal is already folded into `brick_wall` via steepness_boost. Scoring it
+                // raw here would swamp the normalized sum, so exclude it.
+                | "rolloff_steepness"
         ) || e.weight <= 0.0
         {
             continue;
@@ -96,14 +117,9 @@ pub fn fuse_evidence(
         0.0
     };
 
-    let brick_wall = evidence
-        .iter()
-        .find(|e| e.signal == "brick_wall")
-        .map(|e| e.value)
-        .unwrap_or(0.0);
-
     // Content reaching ~18 kHz without a lossy cliff reads genuine unless codec ID is strong.
-    if (full_band || edge_hz >= thresholds.sufficient_bandwidth_hz)
+    if !strong_cliff
+        && (full_band || edge_hz >= thresholds.sufficient_bandwidth_hz)
         && brick_wall < 0.35
         && codec_certainty < 0.45
     {
@@ -116,23 +132,24 @@ pub fn fuse_evidence(
         );
     }
 
-    let verdict =
-        if full_band && normalized < thresholds.verdict_transcoded && codec_certainty < 0.35 {
-            TranscodeVerdict::Genuine
-        } else if normalized >= thresholds.verdict_transcoded {
-            TranscodeVerdict::Transcoded
-        } else if normalized >= thresholds.verdict_suspicious {
-            TranscodeVerdict::Suspicious
-        } else if sufficient_bandwidth {
-            TranscodeVerdict::Genuine
-        } else if info_score < 0.15 {
-            TranscodeVerdict::Inconclusive
-        } else {
-            TranscodeVerdict::Genuine
-        };
+    let verdict = if strong_cliff {
+        TranscodeVerdict::Transcoded
+    } else if full_band && normalized < thresholds.verdict_transcoded && codec_certainty < 0.35 {
+        TranscodeVerdict::Genuine
+    } else if normalized >= thresholds.verdict_transcoded {
+        TranscodeVerdict::Transcoded
+    } else if normalized >= thresholds.verdict_suspicious {
+        TranscodeVerdict::Suspicious
+    } else if sufficient_bandwidth {
+        TranscodeVerdict::Genuine
+    } else if info_score < 0.15 {
+        TranscodeVerdict::Inconclusive
+    } else {
+        TranscodeVerdict::Genuine
+    };
 
     let confidence = match verdict {
-        TranscodeVerdict::Transcoded => normalized.max(codec_certainty * 0.5),
+        TranscodeVerdict::Transcoded => normalized.max(codec_certainty * 0.5).max(brick_wall),
         TranscodeVerdict::Suspicious => {
             0.5 + (normalized - thresholds.verdict_suspicious) * 0.5 + codec_certainty * 0.15
         }

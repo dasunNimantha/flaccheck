@@ -1,5 +1,6 @@
 pub mod args;
 pub mod benchmark;
+pub mod features;
 pub mod report;
 pub mod scan;
 pub mod ui;

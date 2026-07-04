@@ -4,6 +4,7 @@ mod analyze;
 mod calibration;
 mod evidence;
 mod fusion;
+mod ml_features;
 mod pcm;
 mod scan_mode;
 mod verdict;
@@ -12,6 +13,9 @@ pub use analyze::{AnalysisConfig, AnalysisError};
 pub use calibration::Thresholds;
 pub use evidence::Evidence;
 pub use fusion::{fuse_evidence, fuse_hires_verdict, spectral_information_score};
+pub use ml_features::{
+    evidence_feature_map, evidence_to_feature_vector, feature_key, ML_FEATURE_ORDER,
+};
 pub use pcm::PcmBuffer;
 pub use scan_mode::ScanMode;
 pub use verdict::{HiresVerdict, TranscodeVerdict};

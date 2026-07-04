@@ -82,9 +82,12 @@ fn decode_roundtrip_matches_direct_analyze() {
     use lossless_scan_detectors::analyze_pcm;
 
     let dir = tempfile::tempdir().unwrap();
+    // Use a robust wideband-noise case: its verdict is stable, so this exercises decode-path
+    // consistency without depending on a borderline signal whose verdict can flip on tiny
+    // float round-trip differences (e.g. synthetic multitones with silence above the top tone).
     let case = full_corpus()
         .into_iter()
-        .find(|c| c.id == "genuine_multitone_a")
+        .find(|c| c.id == "genuine_noise_1")
         .unwrap();
     let wav = dir.path().join("tone.wav");
     write_wav_f32_mono(&wav, &case.pcm.left(), case.pcm.sample_rate).unwrap();
