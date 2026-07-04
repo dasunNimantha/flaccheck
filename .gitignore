@@ -1,3 +1,4 @@
+/node_modules/
 /target/
 /datasets/output/
 /datasets/genuine_diverse/

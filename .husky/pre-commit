@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+set -e
+
+cargo fmt --all
+
+formatted="$(git diff --name-only -- '*.rs' Cargo.toml Cargo.lock)"
+if [ -n "$formatted" ]; then
+  echo "$formatted" | xargs git add
+fi
