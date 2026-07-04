@@ -1,16 +1,23 @@
 name: CI
 
 on:
-  push:
-    branches: [main, master]
   pull_request:
-    branches: [main, master]
+    branches: [master, main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   check:
+    name: Format, Clippy, Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,3 +42,22 @@ jobs:
 
       - name: Release build
         run: cargo build --release -p flaccheck
+
+  ci-required:
+    name: CI Required
+    needs: [check]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify upstream jobs
+        env:
+          NEEDS_JSON: ${{ toJson(needs) }}
+        run: |
+          set -euo pipefail
+          echo "Upstream job results:"
+          echo "$NEEDS_JSON" | jq -r 'to_entries[] | "  \(.key): \(.value.result)"'
+          if echo "$NEEDS_JSON" | jq -e 'to_entries[] | select(.value.result == "failure" or .value.result == "cancelled")' >/dev/null; then
+            echo "::error::One or more required jobs failed or were cancelled"
+            exit 1
+          fi
+          echo "All required jobs succeeded."

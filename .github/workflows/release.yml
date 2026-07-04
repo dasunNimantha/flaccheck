@@ -1,0 +1,190 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Format
+        run: cargo fmt --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Test
+        run: cargo test --workspace
+
+  build:
+    name: Build (${{ matrix.target }})
+    needs: [test]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive: tar.gz
+            bin: flaccheck
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive: tar.gz
+            bin: flaccheck
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            archive: tar.gz
+            bin: flaccheck
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            archive: tar.gz
+            bin: flaccheck
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            archive: zip
+            bin: flaccheck.exe
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install Linux cross toolchain
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          mkdir -p .cargo
+          printf '%s\n' \
+            '[target.aarch64-unknown-linux-gnu]' \
+            'linker = "aarch64-linux-gnu-gcc"' \
+            >> .cargo/config.toml
+
+      - name: Extract version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          TAG="${GITHUB_REF#refs/tags/}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          if [ "$TAG" != "v$VERSION" ]; then
+            echo "::error::Tag $TAG does not match Cargo.toml version v$VERSION"
+            exit 1
+          fi
+
+      - name: Build release binary
+        run: cargo build --release -p flaccheck --target ${{ matrix.target }}
+
+      - name: Package (Unix)
+        if: matrix.archive == 'tar.gz'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TARGET="${{ matrix.target }}"
+          PKG="flaccheck-${VERSION}-${TARGET}"
+          mkdir -p "$PKG"
+          cp "target/${TARGET}/release/${{ matrix.bin }}" "$PKG/"
+          cp README.md LICENSE "$PKG/"
+          tar czf "${PKG}.tar.gz" "$PKG"
+          echo "asset=${PKG}.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Package (Windows)
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $target = "${{ matrix.target }}"
+          $pkg = "flaccheck-$version-$target"
+          New-Item -ItemType Directory -Path $pkg
+          Copy-Item "target/$target/release/${{ matrix.bin }}" $pkg/
+          Copy-Item README.md, LICENSE $pkg/
+          Compress-Archive -Path $pkg -DestinationPath "$pkg.zip"
+          "asset=$pkg.zip" >> $env:GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flaccheck-${{ matrix.target }}
+          path: ${{ env.asset }}
+          retention-days: 7
+
+  release:
+    name: Publish GitHub Release
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List assets
+        run: ls -la dist/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: v${{ steps.version.outputs.version }}
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: true
+          body: |
+            ## flaccheck v${{ steps.version.outputs.version }}
+
+            Detect fake FLAC files — find MP3, AAC, Opus, and Vorbis transcodes disguised as lossless audio.
+
+            ### Install
+
+            Download the archive for your platform, extract, and run `flaccheck`:
+
+            | Platform | Asset |
+            | --- | --- |
+            | Linux x86_64 | `flaccheck-*-x86_64-unknown-linux-gnu.tar.gz` |
+            | Linux ARM64 | `flaccheck-*-aarch64-unknown-linux-gnu.tar.gz` |
+            | macOS Intel | `flaccheck-*-x86_64-apple-darwin.tar.gz` |
+            | macOS Apple Silicon | `flaccheck-*-aarch64-apple-darwin.tar.gz` |
+            | Windows x86_64 | `flaccheck-*-x86_64-pc-windows-msvc.zip` |
+
+            Or build from source:
+
+            ```bash
+            cargo install --path crates/flaccheck-cli
+            ```
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
