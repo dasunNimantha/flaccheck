@@ -46,12 +46,12 @@ impl ClassicalModel {
     pub fn transcode_probability(&self, features: &[f64]) -> f64 {
         let n = self.feature_names.len().min(features.len());
         let mut logit = self.intercept;
-        for i in 0..n {
+        for (i, feat) in features.iter().enumerate().take(n) {
             let x = if self.scaler_mean.len() == n && self.scaler_scale.len() == n {
                 let scale = self.scaler_scale[i].abs().max(1e-12);
-                (features[i] - self.scaler_mean[i]) / scale
+                (feat - self.scaler_mean[i]) / scale
             } else {
-                features[i]
+                *feat
             };
             logit += self.coefficients.get(i).copied().unwrap_or(0.0) * x;
         }

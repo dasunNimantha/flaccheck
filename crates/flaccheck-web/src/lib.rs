@@ -26,6 +26,7 @@ pub struct ScanQuery {
     #[serde(default = "default_mode")]
     mode: String,
     #[serde(default)]
+    #[allow(dead_code)] // reserved for future per-detector evidence toggle
     explain: bool,
     #[serde(default)]
     ml: bool,
