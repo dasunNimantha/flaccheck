@@ -141,6 +141,216 @@
           "genuine_recall": 0.0
         }
       }
+    },
+    {
+      "name": "isflac",
+      "overall": {
+        "total": 121,
+        "judged": 121,
+        "inconclusive": 0,
+        "tp": 63,
+        "fp": 1,
+        "fn": 47,
+        "tn": 10,
+        "precision": 0.984375,
+        "recall": 0.5727272727272728,
+        "genuine_precision": 0.9090909090909091,
+        "genuine_recall": 0.17543859649122806
+      },
+      "by_codec": {
+        "aac": {
+          "total": 33,
+          "judged": 33,
+          "inconclusive": 0,
+          "tp": 12,
+          "fp": 0,
+          "fn": 21,
+          "tn": 0,
+          "precision": 1.0,
+          "recall": 0.36363636363636365,
+          "genuine_precision": null,
+          "genuine_recall": 0.0
+        },
+        "mp3": {
+          "total": 44,
+          "judged": 44,
+          "inconclusive": 0,
+          "tp": 26,
+          "fp": 0,
+          "fn": 18,
+          "tn": 0,
+          "precision": 1.0,
+          "recall": 0.5909090909090909,
+          "genuine_precision": null,
+          "genuine_recall": 0.0
+        },
+        "opus": {
+          "total": 22,
+          "judged": 22,
+          "inconclusive": 0,
+          "tp": 20,
+          "fp": 0,
+          "fn": 2,
+          "tn": 0,
+          "precision": 1.0,
+          "recall": 0.9090909090909091,
+          "genuine_precision": null,
+          "genuine_recall": 0.0
+        },
+        "vorbis": {
+          "total": 11,
+          "judged": 11,
+          "inconclusive": 0,
+          "tp": 5,
+          "fp": 0,
+          "fn": 6,
+          "tn": 0,
+          "precision": 1.0,
+          "recall": 0.45454545454545453,
+          "genuine_precision": null,
+          "genuine_recall": 0.0
+        }
+      }
+    },
+    {
+      "name": "soundaudit",
+      "overall": {
+        "total": 121,
+        "judged": 121,
+        "inconclusive": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 110,
+        "tn": 11,
+        "precision": null,
+        "recall": 0.0,
+        "genuine_precision": 1.0,
+        "genuine_recall": 0.09090909090909091
+      },
+      "by_codec": {
+        "aac": {
+          "total": 33,
+          "judged": 33,
+          "inconclusive": 0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 33,
+          "tn": 0,
+          "precision": null,
+          "recall": 0.0,
+          "genuine_precision": null,
+          "genuine_recall": 0.0
+        },
+        "mp3": {
+          "total": 44,
+          "judged": 44,
+          "inconclusive": 0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 44,
+          "tn": 0,
+          "precision": null,
+          "recall": 0.0,
+          "genuine_precision": null,
+          "genuine_recall": 0.0
+        },
+        "opus": {
+          "total": 22,
+          "judged": 22,
+          "inconclusive": 0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 22,
+          "tn": 0,
+          "precision": null,
+          "recall": 0.0,
+          "genuine_precision": null,
+          "genuine_recall": 0.0
+        },
+        "vorbis": {
+          "total": 11,
+          "judged": 11,
+          "inconclusive": 0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 11,
+          "tn": 0,
+          "precision": null,
+          "recall": 0.0,
+          "genuine_precision": null,
+          "genuine_recall": 0.0
+        }
+      }
+    },
+    {
+      "name": "audiocheckr",
+      "overall": {
+        "total": 121,
+        "judged": 121,
+        "inconclusive": 0,
+        "tp": 91,
+        "fp": 8,
+        "fn": 19,
+        "tn": 3,
+        "precision": 0.9191919191919192,
+        "recall": 0.8272727272727273,
+        "genuine_precision": 0.2727272727272727,
+        "genuine_recall": 0.13636363636363635
+      },
+      "by_codec": {
+        "aac": {
+          "total": 33,
+          "judged": 33,
+          "inconclusive": 0,
+          "tp": 25,
+          "fp": 0,
+          "fn": 8,
+          "tn": 0,
+          "precision": 1.0,
+          "recall": 0.7575757575757576,
+          "genuine_precision": null,
+          "genuine_recall": 0.0
+        },
+        "mp3": {
+          "total": 44,
+          "judged": 44,
+          "inconclusive": 0,
+          "tp": 35,
+          "fp": 0,
+          "fn": 9,
+          "tn": 0,
+          "precision": 1.0,
+          "recall": 0.7954545454545454,
+          "genuine_precision": null,
+          "genuine_recall": 0.0
+        },
+        "opus": {
+          "total": 22,
+          "judged": 22,
+          "inconclusive": 0,
+          "tp": 22,
+          "fp": 0,
+          "fn": 0,
+          "tn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "genuine_precision": null,
+          "genuine_recall": null
+        },
+        "vorbis": {
+          "total": 11,
+          "judged": 11,
+          "inconclusive": 0,
+          "tp": 9,
+          "fp": 0,
+          "fn": 2,
+          "tn": 0,
+          "precision": 1.0,
+          "recall": 0.8181818181818182,
+          "genuine_precision": null,
+          "genuine_recall": 0.0
+        }
+      }
     }
   ]
 }
