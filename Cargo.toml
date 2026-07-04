@@ -1,20 +1,20 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/lossless-scan-cli",
-    "crates/lossless-scan-core",
-    "crates/lossless-scan-decode",
-    "crates/lossless-scan-detectors",
-    "crates/lossless-scan-ml",
-    "crates/lossless-scan-testkit",
-    "crates/lossless-scan-web",
+    "crates/flaccheck-cli",
+    "crates/flaccheck-core",
+    "crates/flaccheck-decode",
+    "crates/flaccheck-detectors",
+    "crates/flaccheck-ml",
+    "crates/flaccheck-testkit",
+    "crates/flaccheck-web",
 ]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-authors = ["lossless-scan contributors"]
+authors = ["flaccheck contributors"]
 
 [workspace.dependencies]
 clap = { version = "4.5", features = ["derive"] }

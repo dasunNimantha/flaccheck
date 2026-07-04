@@ -1,0 +1,24 @@
+[package]
+name = "flaccheck-testkit"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Synthetic audio corpus and metrics for flaccheck tests"
+publish = false
+
+[dependencies]
+flaccheck-core = { path = "../flaccheck-core" }
+flaccheck-detectors = { path = "../flaccheck-detectors" }
+flaccheck-decode = { path = "../flaccheck-decode" }
+rustfft = { workspace = true }
+realfft = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[[bin]]
+name = "flaccheck-generate-corpus"
+path = "src/bin/generate_corpus.rs"
+
+[[bin]]
+name = "flaccheck-calibrate"
+path = "src/bin/calibrate.rs"

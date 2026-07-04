@@ -1,0 +1,10 @@
+[package]
+name = "flaccheck-decode"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+flaccheck-core = { path = "../flaccheck-core" }
+symphonia = { workspace = true }
+thiserror = { workspace = true }

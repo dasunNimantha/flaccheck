@@ -9,5 +9,5 @@ When real fixtures are available, compare metrics against published results:
 | Lacroix AES 2015 | 100% upscale/transcode, 91.3% upsample | Hi-res tier |
 
 ```bash
-cargo run -p lossless-scan -- --benchmark datasets/output/manifest.json --mode max -o tests/paper_regression/results.json .
+cargo run -p flaccheck -- --benchmark datasets/output/manifest.json --mode max -o tests/paper_regression/results.json .
 ```

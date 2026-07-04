@@ -1,6 +1,6 @@
 # Offline ML training sandbox
 
-Train borderline classifiers for `lossless-scan --ml`. ML only refines **borderline** tracks (suspicious or confidence 0.35–0.65); confident heuristic verdicts are unchanged.
+Train borderline classifiers for `flaccheck --ml`. ML only refines **borderline** tracks (suspicious or confidence 0.35–0.65); confident heuristic verdicts are unchanged.
 
 ## Setup
 
@@ -17,7 +17,7 @@ Uses the ~23 detector evidence scalars already computed by the pipeline. Pure-Ru
 ### 1. Dump features from a labeled manifest
 
 ```bash
-cargo run -p lossless-scan --release -- features \
+cargo run -p flaccheck --release -- features \
   datasets/output/calibration/manifest.json \
   --mode max -o features.jsonl --quiet
 ```
@@ -34,14 +34,14 @@ Exports `models/classical_model.json` with feature order, coefficients, intercep
 ### 3. Scan with ML
 
 ```bash
-cargo run -p lossless-scan --release -- \
+cargo run -p flaccheck --release -- \
   --ml --model models/classical_model.json scan track.flac
 ```
 
 ### 4. Benchmark with ML
 
 ```bash
-cargo run -p lossless-scan --release -- \
+cargo run -p flaccheck --release -- \
   benchmark datasets/output/calibration/manifest.json \
   --mode max --ml --model models/classical_model.json --format json
 ```
@@ -52,7 +52,7 @@ Mid/side mel-spectrogram CNN via `tract-onnx`. Requires building with the `ml` f
 
 ### Mel parameters
 
-Locked in [`mel_config.py`](mel_config.py) and [`../crates/lossless-scan-ml/src/mel.rs`](../crates/lossless-scan-ml/src/mel.rs): `n_fft=2048`, `hop=512`, `n_mels=64`, `n_frames=128`.
+Locked in [`mel_config.py`](mel_config.py) and [`../crates/flaccheck-ml/src/mel.rs`](../crates/flaccheck-ml/src/mel.rs): `n_fft=2048`, `hop=512`, `n_mels=64`, `n_frames=128`.
 
 ### Train and export ONNX
 
@@ -69,7 +69,7 @@ python train.py --manifest ../datasets/output/calibration/manifest.json \
 ### Scan with ONNX model
 
 ```bash
-cargo run -p lossless-scan --release --features ml -- \
+cargo run -p flaccheck --release --features ml -- \
   --ml --model models/borderline.onnx scan track.flac
 ```
 
@@ -82,7 +82,7 @@ cargo run -p lossless-scan --release --features ml -- \
 
 ## Feature list
 
-Canonical order lives in `lossless-scan-core` as `ML_FEATURE_ORDER` (`detector.signal` keys). Training and inference must use the same order.
+Canonical order lives in `flaccheck-core` as `ML_FEATURE_ORDER` (`detector.signal` keys). Training and inference must use the same order.
 
 ## TODO
 

@@ -1,0 +1,17 @@
+[package]
+name = "flaccheck-detectors"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+flaccheck-core = { path = "../flaccheck-core" }
+rustfft = { workspace = true }
+realfft = { workspace = true }
+ndarray = { workspace = true }
+
+[dev-dependencies]
+approx = "0.5"
+flaccheck-testkit = { path = "../flaccheck-testkit" }
+flaccheck-decode = { path = "../flaccheck-decode" }
+serde_json = { workspace = true }

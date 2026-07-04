@@ -1,0 +1,21 @@
+[package]
+name = "flaccheck-ml"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = []
+onnx = ["dep:tract-onnx", "dep:rustfft", "dep:ndarray"]
+
+[dependencies]
+flaccheck-core = { path = "../flaccheck-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tract-onnx = { workspace = true, optional = true }
+rustfft = { workspace = true, optional = true }
+ndarray = { workspace = true, optional = true }
+
+[dev-dependencies]
+tempfile = "3.14"

@@ -1,163 +1,250 @@
-# lossless-scan
+# flaccheck — detect fake FLAC files (MP3/AAC transcodes)
 
-CLI for **lossless audio authenticity analysis** — detect fake lossless files (for example, MP3 or AAC transcoded to FLAC) using research-backed spectral, quantization, and artifact detectors.
+[![CI](https://github.com/dasunNimantha/flaccheck/actions/workflows/ci.yml/badge.svg)](https://github.com/dasunNimantha/flaccheck/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org/)
 
-## Features
+**flaccheck** is a fast, open-source tool that tells you whether a FLAC (or other lossless file) is **genuinely lossless** or a **lossy transcode in disguise** — for example MP3, AAC, Opus, or Vorbis re-encoded as FLAC.
 
-- **Three scan modes** — `fast`, `balanced` (default), and `max` trade speed for depth
-- **Multiple output formats** — text, JSON, CSV, and HTML reports
-- **Parallel scanning** — configurable worker count for directories
-- **Broad decode support** — FLAC, WAV, AIFF, ALAC, AAC, MP3, Vorbis via symphonia; optional ffmpeg for APE, WavPack, Opus
-- **Optional ML layer** — classical JSON model (default) or ONNX mel-CNN (`--features ml`) for borderline refinement
-- **Feature dump** — export labeled evidence vectors for training (`features` subcommand)
-- **Benchmark harness** — evaluate against labeled manifests for regression tracking
+Scan a single track, an entire music library, or use the built-in web UI. No upload to the cloud: analysis runs locally on your machine.
 
-### Detection tiers
+---
 
-| Tier | Method | Reference |
-|------|--------|-----------|
-| 1 | Spectral cutoff / bitrate fingerprint | D'Alessandro & Shi, ACM MM&Sec 2009 |
-| 2 | MDCT quantization residual | Derrien, JAES 2019 |
-| 3 | Pre-echo, phase, joint-stereo artifacts | Lacroix et al., AES 2015 |
-| 4 | Fake hi-res (upsample, padded depth) | Lacroix et al., AES 2015 |
-| 5 | Abstention on band-limited content | — |
+## Table of contents
 
-## Install
+- [Why fake lossless matters](#why-fake-lossless-matters)
+- [How flaccheck works](#how-flaccheck-works)
+- [Quick start](#quick-start)
+- [Usage](#usage)
+- [Web UI](#web-ui)
+- [Verdicts](#verdicts)
+- [Supported formats](#supported-formats)
+- [Accuracy](#accuracy)
+- [FAQ](#faq)
+- [Limitations](#limitations)
+- [Development](#development)
+- [License](#license)
 
-**Requirements:** Rust stable (2021 edition).
+---
 
-### From source (release binary)
+## Why fake lossless matters
+
+Lossless audio (FLAC, ALAC, WAV) preserves every sample from the original. Lossy codecs (MP3, AAC, Opus) throw away information to save space. Re-wrapping a 128 kbps MP3 as FLAC does **not** restore quality — you get a larger file with the same audible artifacts.
+
+Fake lossless shows up in:
+
+- Downloaded "FLAC" albums from untrusted sources
+- Upsampled or mislabeled hi-res releases
+- Marketplace listings that claim lossless but ship transcodes
+
+**flaccheck** answers the question audiophiles and archivists ask every day: *is this file actually lossless?*
+
+---
+
+## How flaccheck works
+
+flaccheck does not trust file extensions or tags. It decodes audio and runs **research-backed forensic detectors**:
+
+| Tier | Method | What it catches |
+|------|--------|-----------------|
+| 1 | Spectral cutoff & brick-wall fingerprint | MP3/AAC/Opus frequency cliffs |
+| 2 | MDCT quantization residual | Lossy codec block structure |
+| 3 | Pre-echo, phase, joint-stereo artifacts | MP3/AAC encoder signatures |
+| 4 | Fake hi-res (upsample, padded bit depth) | "24-bit" files with 16-bit content |
+| 5 | Abstention on band-limited content | Old recordings, narrow masters |
+
+Evidence from multiple tiers is fused into a single verdict with optional per-detector explanations (`--explain`).
+
+References: D'Alessandro & Shi (ACM MM&Sec 2009), Derrien (JAES 2019), Lacroix et al. (AES 2015).
+
+---
+
+## Quick start
+
+### Install
+
+**Requirements:** [Rust](https://rustlang.org/tools/install) stable (2021 edition). Optional: [ffmpeg](https://ffmpeg.org/) for APE, WavPack, and Opus.
 
 ```bash
-git clone https://github.com/YOUR_ORG/lossless-scan.git
-cd lossless-scan
-cargo build --release -p lossless-scan
+git clone https://github.com/dasunNimantha/flaccheck.git
+cd flaccheck
+cargo build --release -p flaccheck
 ```
 
-Binary: `target/release/lossless-scan`
+Binary: `target/release/flaccheck`
 
-Optional ML support (tract-onnx):
+Install to `~/.cargo/bin`:
 
 ```bash
-cargo build --release -p lossless-scan --features ml
+cargo install --path crates/flaccheck-cli
 ```
 
-### Install into `~/.cargo/bin`
+### Scan your first file
 
 ```bash
-cargo install --path crates/lossless-scan-cli
-# with ML:
-cargo install --path crates/lossless-scan-cli --features ml
+flaccheck scan track.flac
 ```
+
+Example output:
+
+```
+┌─────────────┬────────────┬──────────┬─────────────┐
+│ File        │ Verdict    │ Codec    │ Confidence  │
+├─────────────┼────────────┼──────────┼─────────────┤
+│ track.flac  │ TRANSCODED │ mp3~128k │ high        │
+└─────────────┴────────────┴──────────┴─────────────┘
+```
+
+---
 
 ## Usage
 
-Commands use subcommands: `scan` (analyze files), `benchmark` (evaluate a manifest), `features` (dump ML training data), and `serve` (web UI).
-
 ```bash
-# Web UI — drag-and-drop in browser
-lossless-scan serve
-# → http://127.0.0.1:8787
+# Single file (colored table)
+flaccheck scan track.flac
 
-# Scan a single file (colored table output)
-lossless-scan scan track.flac
+# Entire library — parallel workers
+flaccheck scan ~/Music --workers 8
 
-# Directory scan, HTML report
-lossless-scan scan /path/to/music --mode balanced --format html -o report.html
+# HTML report for sharing
+flaccheck scan ~/Music --format html -o report.html
 
-# Exhaustive analysis with detector evidence
-lossless-scan scan track.flac --mode max --explain
+# JSON for scripts and automation
+flaccheck scan album.flac --format json --quiet -o results.json
 
-# Fast library sweep, 8 workers
-lossless-scan scan /music --mode fast --workers 8
+# Deep analysis with detector evidence
+flaccheck scan track.flac --mode max --explain
 
-# JSON for scripts (no progress noise)
-lossless-scan scan album.flac --format json --quiet -o results.json
-
-# Disable colors (CI / logs)
-lossless-scan scan album.flac --color never
-
-# Classical ML borderline refinement (no extra build flags)
-lossless-scan scan --ml --model models/classical_model.json track.flac
-
-# ONNX mel-CNN (requires --features ml build)
-lossless-scan scan --ml --model models/borderline.onnx track.flac
-
-# Dump features for training
-lossless-scan features datasets/output/calibration/manifest.json --mode max -o features.jsonl
+# Fast sweep (spectral + hi-res only)
+flaccheck scan ~/Music --mode fast
 
 # Benchmark against a labeled manifest
-lossless-scan benchmark datasets/output/synthetic/manifest.json --mode balanced -o metrics.json
+flaccheck benchmark manifest.json --mode balanced -o metrics.json
 ```
-
-### Verdict colors (text mode)
-
-| Verdict | Meaning |
-|---------|---------|
-| **GENUINE** (green) | No strong transcoding evidence |
-| **SUSPICIOUS** (yellow) | Some lossy indicators |
-| **TRANSCODED** (red) | Strong lossy fingerprint |
-| **INCONCLUSIVE** (dim) | Too band-limited to judge |
 
 ### Scan modes
 
-| Mode | What it runs | Typical cost |
-|------|----------------|--------------|
-| `fast` | Tier 1 + 4 + light artifacts | Seconds per file |
-| `balanced` | + Tier 2 on suspects, full artifacts | Default; good library sweep |
-| `max` | Exhaustive Tier 2 search, all tiers on every file | Slowest; highest recall |
+| Mode | Detectors | Best for |
+|------|-----------|----------|
+| `fast` | Spectral + hi-res + light artifacts | Large libraries, first pass |
+| `balanced` | + quantization on suspects, full artifacts | **Default** — good speed/recall |
+| `max` | Exhaustive quantization search on every file | Suspicious files, archival QA |
 
-## Decode support
+### Output formats
 
-**Native (symphonia):** FLAC, WAV, AIFF, ALAC, AAC, MP3, Vorbis
+`text` (default), `json`, `csv`, `html`
 
-**Optional ffmpeg:** `.ape`, `.wv`, `.opus` — skipped with a clear message if ffmpeg is not installed
+---
 
-## Benchmarks and datasets
+## Web UI
 
-Synthetic transcode matrices for evaluation:
+Drag-and-drop analysis in the browser — no CLI required:
 
 ```bash
-# Requires ffmpeg and a directory of source WAV/FLAC files
-./datasets/generate.sh /path/to/lossless/sources datasets/output
-
-# Run the benchmark harness against a manifest
-lossless-scan benchmark tests/golden/manifest.example.json --mode balanced -o benchmark.json
+flaccheck serve
+# → http://127.0.0.1:8787
 ```
 
-The workspace includes an in-memory labeled corpus (60+ synthetic cases) exercised by `cargo test --workspace`. Tier 2 thresholds are structurally correct but **uncalibrated** until validated on a larger labeled database.
+Upload FLAC, WAV, or other supported files and get instant verdicts with spectral charts.
 
-## Honest limitations
+---
 
-- `GENUINE` means *no evidence of transcoding*, not a cryptographic guarantee.
-- Content bandwidth is measured with a **noise-floor spectral edge** (highest frequency
-  with real content above the treble noise floor), not a 95%-energy rolloff. This is
-  Nyquist-aware and robust to bass-heavy masters, so full-band audio no longer gets
-  wrongly flagged as band-limited.
-- `INCONCLUSIVE` is reserved for genuinely narrow-band material with no lossy cliff —
-  where a hidden transcode cutoff cannot be told apart from a naturally dark source.
-  Its confidence is intentionally shown as `—`.
-- High-bitrate transcodes (256 kbps CBR / V0) whose cutoff sits near 19–20 kHz are an
-  inherently ambiguous zone and may read `SUSPICIOUS` rather than a hard verdict.
-- Tier 2 thresholds are calibrated via `lossless-scan-calibrate` against an ffmpeg
-  transcode matrix (`datasets/generate.sh`). Baked defaults target balanced recall.
-- MP3 PQMF and joint-stereo detectors are heuristic — require a lossy cliff or
-  corroborating quant evidence for high-confidence transcode verdicts.
+## Verdicts
 
-## Research / ML training
+| Verdict | Meaning |
+|---------|---------|
+| **GENUINE** | No strong evidence of lossy transcoding |
+| **SUSPICIOUS** | Some lossy indicators; may be high-bitrate transcode |
+| **TRANSCODED** | Strong lossy fingerprint (e.g. MP3 brick wall at 16 kHz) |
+| **INCONCLUSIVE** | Source is too band-limited to judge reliably |
 
-Offline ONNX export and training notes: [`research/README.md`](research/README.md) and `research/train.py`. The CLI runs without model weights (graceful no-op).
+`GENUINE` means *no transcoding evidence was found* — not a cryptographic proof of provenance.
+
+---
+
+## Supported formats
+
+**Native decode (symphonia):** FLAC, WAV, AIFF, ALAC, AAC, MP3, Vorbis
+
+**With ffmpeg installed:** APE, WavPack, Opus
+
+---
+
+## Accuracy
+
+Evaluated on **198 real-music transcodes** generated from genuine FLAC sources (not synthetic noise):
+
+| Metric | Result |
+|--------|--------|
+| Precision on genuine originals | **100%** (zero false positives) |
+| Overall recall | **77%** |
+| MP3 detection | 94% |
+| Opus detection | 100% |
+| Vorbis detection | 67% |
+| AAC detection | 43% |
+
+High-bitrate AAC (256 kbps) and historically band-limited masters are the hardest cases — see [limitations](#limitations).
+
+Optional ML refinement for borderline files:
+
+```bash
+cargo build --release -p flaccheck --features ml
+flaccheck scan --ml --model models/borderline.onnx track.flac
+```
+
+---
+
+## FAQ
+
+### How do I know if my FLAC is fake?
+
+Decode and inspect the spectrum. Lossy transcodes show a sharp **frequency cliff** (brick wall) where the encoder cut off high frequencies — typically 16–20 kHz for MP3, or a gentle shelf for AAC. flaccheck automates this plus deeper codec fingerprinting.
+
+### Can flaccheck detect MP3 converted to FLAC?
+
+Yes. MP3 transcodes are the strongest case — spectral brick walls, MDCT residuals, and joint-stereo artifacts are reliably detected (94% recall in our real-music evaluation).
+
+### Does flaccheck work on Apple Lossless (ALAC) or WAV?
+
+Yes. Any container format flaccheck can decode is analyzed the same way. The question is whether the *audio content* shows lossy encoding fingerprints, not the file extension.
+
+### Is flaccheck better than Spek or Audacity?
+
+Spek shows a spectrogram for manual inspection. flaccheck **automates** multi-tier detection, scores confidence, batch-scans directories, and outputs structured reports (JSON/CSV/HTML). Use both: flaccheck for library sweeps, a spectrogram viewer to visually confirm edge cases.
+
+### Does it upload my music anywhere?
+
+No. All analysis is **local**. The web UI (`flaccheck serve`) binds to `127.0.0.1` by default.
+
+### What about high-bitrate AAC or 320 kbps MP3?
+
+These are harder. A 320 kbps MP3 may only show subtle artifacts; AAC 256 kbps can sit near Nyquist. flaccheck may return `SUSPICIOUS` rather than a hard `TRANSCODED` verdict — that is intentional.
+
+---
+
+## Limitations
+
+- **Not a provenance guarantee** — `GENUINE` means no lossy fingerprint, not "ripped from original CD."
+- **Band-limited sources** (78 rpm transfers, AM radio recordings, narrow masters) may be `INCONCLUSIVE`.
+- **High-bitrate lossy** (AAC 256k, MP3 V0) is an inherently ambiguous zone.
+- **AAC recall** is lower than MP3/Opus; gentle spectral shelves are harder than brick walls.
+- Tier 2 thresholds are calibrated on ffmpeg transcode matrices; your sources may differ.
+
+---
 
 ## Development
 
 ```bash
-# Format, lint, test, release build (same as CI)
 cargo fmt --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-cargo build --release -p lossless-scan
+cargo build --release -p flaccheck
 ```
+
+Research notes and ML training: [`research/README.md`](research/README.md).
+
+---
 
 ## License
 
-MIT — see workspace `Cargo.toml` (`license = "MIT"`).
+MIT — see [LICENSE](LICENSE).

@@ -1,0 +1,42 @@
+[package]
+name = "flaccheck"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Research-backed lossless audio authenticity CLI"
+default-run = "flaccheck"
+
+[lib]
+name = "flaccheck"
+path = "src/lib.rs"
+
+[[bin]]
+name = "flaccheck"
+path = "src/main.rs"
+
+[features]
+default = []
+ml = ["flaccheck-ml/onnx"]
+
+[dev-dependencies]
+flaccheck-testkit = { path = "../flaccheck-testkit" }
+flaccheck-decode = { path = "../flaccheck-decode" }
+flaccheck-detectors = { path = "../flaccheck-detectors" }
+flaccheck-ml = { path = "../flaccheck-ml" }
+tempfile = "3.14"
+
+[dependencies]
+flaccheck-core = { path = "../flaccheck-core" }
+flaccheck-decode = { path = "../flaccheck-decode" }
+flaccheck-detectors = { path = "../flaccheck-detectors" }
+flaccheck-ml = { path = "../flaccheck-ml" }
+flaccheck-web = { path = "../flaccheck-web" }
+clap = { workspace = true }
+console = "0.15"
+comfy-table = "7.1"
+indicatif = { workspace = true }
+rayon = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+minijinja = { workspace = true }
+tokio = { workspace = true }

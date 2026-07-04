@@ -7,8 +7,8 @@ Place labeled FLAC fixtures under `datasets/output/` (see `datasets/generate.sh`
 Run:
 
 ```bash
-cargo test -p lossless-scan-detectors
-cargo test -p lossless-scan-core
+cargo test -p flaccheck-detectors
+cargo test -p flaccheck-core
 ```
 
 Synthetic unit tests run without external audio files.

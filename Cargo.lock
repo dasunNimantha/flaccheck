@@ -534,6 +534,104 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
 
 [[package]]
+name = "flaccheck"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "comfy-table",
+ "console",
+ "flaccheck-core",
+ "flaccheck-decode",
+ "flaccheck-detectors",
+ "flaccheck-ml",
+ "flaccheck-testkit",
+ "flaccheck-web",
+ "indicatif",
+ "minijinja",
+ "rayon",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "flaccheck-core"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "flaccheck-decode"
+version = "0.1.0"
+dependencies = [
+ "flaccheck-core",
+ "symphonia",
+ "thiserror",
+]
+
+[[package]]
+name = "flaccheck-detectors"
+version = "0.1.0"
+dependencies = [
+ "approx",
+ "flaccheck-core",
+ "flaccheck-decode",
+ "flaccheck-testkit",
+ "ndarray",
+ "realfft",
+ "rustfft",
+ "serde_json",
+]
+
+[[package]]
+name = "flaccheck-ml"
+version = "0.1.0"
+dependencies = [
+ "flaccheck-core",
+ "ndarray",
+ "rustfft",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tract-onnx",
+]
+
+[[package]]
+name = "flaccheck-testkit"
+version = "0.1.0"
+dependencies = [
+ "flaccheck-core",
+ "flaccheck-decode",
+ "flaccheck-detectors",
+ "realfft",
+ "rustfft",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "flaccheck-web"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "flaccheck-core",
+ "flaccheck-decode",
+ "flaccheck-detectors",
+ "flaccheck-ml",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tower-http",
+]
+
+[[package]]
 name = "flate2"
 version = "1.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -946,104 +1044,6 @@ name = "log"
 version = "0.4.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ceec5bc11778974d1bcb055b18002eba7f4b3518b6a0081b3af5f21666da9ad"
-
-[[package]]
-name = "lossless-scan"
-version = "0.1.0"
-dependencies = [
- "clap",
- "comfy-table",
- "console",
- "indicatif",
- "lossless-scan-core",
- "lossless-scan-decode",
- "lossless-scan-detectors",
- "lossless-scan-ml",
- "lossless-scan-testkit",
- "lossless-scan-web",
- "minijinja",
- "rayon",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
-]
-
-[[package]]
-name = "lossless-scan-core"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
-name = "lossless-scan-decode"
-version = "0.1.0"
-dependencies = [
- "lossless-scan-core",
- "symphonia",
- "thiserror",
-]
-
-[[package]]
-name = "lossless-scan-detectors"
-version = "0.1.0"
-dependencies = [
- "approx",
- "lossless-scan-core",
- "lossless-scan-decode",
- "lossless-scan-testkit",
- "ndarray",
- "realfft",
- "rustfft",
- "serde_json",
-]
-
-[[package]]
-name = "lossless-scan-ml"
-version = "0.1.0"
-dependencies = [
- "lossless-scan-core",
- "ndarray",
- "rustfft",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror",
- "tract-onnx",
-]
-
-[[package]]
-name = "lossless-scan-testkit"
-version = "0.1.0"
-dependencies = [
- "lossless-scan-core",
- "lossless-scan-decode",
- "lossless-scan-detectors",
- "realfft",
- "rustfft",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "lossless-scan-web"
-version = "0.1.0"
-dependencies = [
- "axum",
- "lossless-scan-core",
- "lossless-scan-decode",
- "lossless-scan-detectors",
- "lossless-scan-ml",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror",
- "tokio",
- "tower-http",
-]
 
 [[package]]
 name = "maplit"
