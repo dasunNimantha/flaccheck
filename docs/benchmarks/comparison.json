@@ -1,0 +1,146 @@
+{
+  "corpus": "datasets/output/realistic/manifest.json",
+  "description": "Real-music sources transcoded to FLAC (ffmpeg); 11 genuine + 110 transcodes",
+  "tools": [
+    {
+      "name": "flaccheck",
+      "overall": {
+        "total": 121,
+        "judged": 109,
+        "inconclusive": 12,
+        "tp": 78,
+        "fp": 0,
+        "fn": 22,
+        "tn": 9,
+        "precision": 1.0,
+        "recall": 0.78,
+        "genuine_precision": 1.0,
+        "genuine_recall": 0.2903225806451613
+      },
+      "by_codec": {
+        "aac": {
+          "total": 33,
+          "judged": 28,
+          "inconclusive": 5,
+          "tp": 10,
+          "fp": 0,
+          "fn": 18,
+          "tn": 0,
+          "precision": 1.0,
+          "recall": 0.35714285714285715,
+          "genuine_precision": null,
+          "genuine_recall": 0.0
+        },
+        "mp3": {
+          "total": 44,
+          "judged": 41,
+          "inconclusive": 3,
+          "tp": 40,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0,
+          "precision": 1.0,
+          "recall": 0.975609756097561,
+          "genuine_precision": null,
+          "genuine_recall": 0.0
+        },
+        "opus": {
+          "total": 22,
+          "judged": 22,
+          "inconclusive": 0,
+          "tp": 22,
+          "fp": 0,
+          "fn": 0,
+          "tn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "genuine_precision": null,
+          "genuine_recall": null
+        },
+        "vorbis": {
+          "total": 11,
+          "judged": 9,
+          "inconclusive": 2,
+          "tp": 6,
+          "fp": 0,
+          "fn": 3,
+          "tn": 0,
+          "precision": 1.0,
+          "recall": 0.6666666666666666,
+          "genuine_precision": null,
+          "genuine_recall": 0.0
+        }
+      }
+    },
+    {
+      "name": "FLAC Detective",
+      "overall": {
+        "total": 121,
+        "judged": 121,
+        "inconclusive": 0,
+        "tp": 52,
+        "fp": 1,
+        "fn": 58,
+        "tn": 10,
+        "precision": 0.9811320754716981,
+        "recall": 0.4727272727272727,
+        "genuine_precision": 0.9090909090909091,
+        "genuine_recall": 0.14705882352941177
+      },
+      "by_codec": {
+        "aac": {
+          "total": 33,
+          "judged": 33,
+          "inconclusive": 0,
+          "tp": 7,
+          "fp": 0,
+          "fn": 26,
+          "tn": 0,
+          "precision": 1.0,
+          "recall": 0.21212121212121213,
+          "genuine_precision": null,
+          "genuine_recall": 0.0
+        },
+        "mp3": {
+          "total": 44,
+          "judged": 44,
+          "inconclusive": 0,
+          "tp": 29,
+          "fp": 0,
+          "fn": 15,
+          "tn": 0,
+          "precision": 1.0,
+          "recall": 0.6590909090909091,
+          "genuine_precision": null,
+          "genuine_recall": 0.0
+        },
+        "opus": {
+          "total": 22,
+          "judged": 22,
+          "inconclusive": 0,
+          "tp": 13,
+          "fp": 0,
+          "fn": 9,
+          "tn": 0,
+          "precision": 1.0,
+          "recall": 0.5909090909090909,
+          "genuine_precision": null,
+          "genuine_recall": 0.0
+        },
+        "vorbis": {
+          "total": 11,
+          "judged": 11,
+          "inconclusive": 0,
+          "tp": 3,
+          "fp": 0,
+          "fn": 8,
+          "tn": 0,
+          "precision": 1.0,
+          "recall": 0.2727272727272727,
+          "genuine_precision": null,
+          "genuine_recall": 0.0
+        }
+      }
+    }
+  ]
+}

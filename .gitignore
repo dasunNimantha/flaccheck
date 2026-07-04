@@ -1,4 +1,4 @@
-/node_modules/
+/benchmarks/
 /target/
 /datasets/output/
 /datasets/genuine_diverse/

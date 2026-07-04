@@ -19,7 +19,7 @@ Scan a single track, an entire music library, or use the built-in web UI. No upl
 - [Web UI](#web-ui)
 - [Verdicts](#verdicts)
 - [Supported formats](#supported-formats)
-- [Accuracy](#accuracy)
+- [Benchmarks](#benchmarks)
 - [FAQ](#faq)
 - [Limitations](#limitations)
 - [Development](#development)
@@ -170,20 +170,56 @@ Upload FLAC, WAV, or other supported files and get instant verdicts with spectra
 
 ---
 
-## Accuracy
+## Benchmarks
 
-Evaluated on **198 real-music transcodes** generated from genuine FLAC sources (not synthetic noise):
+Compared on the same **121-file real-music corpus** (11 genuine FLAC references + 110 lossy→FLAC transcodes via ffmpeg: MP3, AAC, Opus, Vorbis). Tools were run locally on identical files; metrics treat **detected fake/suspicious** as a positive call. **Spek** and **auCDtect** are popular alternatives but were not included: Spek is manual spectrogram inspection (no batch verdict), and auCDtect is a legacy Windows-era tool that is difficult to run on modern Linux.
 
-| Metric | Result |
-|--------|--------|
-| Precision on genuine originals | **100%** (zero false positives) |
-| Overall recall | **77%** |
-| MP3 detection | 94% |
-| Opus detection | 100% |
-| Vorbis detection | 67% |
-| AAC detection | 43% |
+### Overall detection quality
 
-High-bitrate AAC (256 kbps) and historically band-limited masters are the hardest cases — see [limitations](#limitations).
+![Overall precision and recall on real-music transcodes](docs/benchmarks/overall_precision_recall.png)
+
+| Tool | Precision | Recall | False positives on genuine |
+|------|-----------|--------|----------------------------|
+| **flaccheck** (balanced) | **100%** | **78%** | **0%** (0/9 judged) |
+| [FLAC Detective](https://pypi.org/project/flac-detective/) 1.7 | 98% | 47% | 10% (1/10 judged) |
+
+flaccheck abstains with `INCONCLUSIVE` on 12 band-limited files rather than guessing (included in recall denominator as misses).
+
+### Recall by source codec
+
+![Recall by lossy codec](docs/benchmarks/recall_by_codec.png)
+
+| Codec | flaccheck | FLAC Detective |
+|-------|-----------|----------------|
+| MP3 | 98% | 66% |
+| AAC | 36% | 21% |
+| Opus | **100%** | 59% |
+| Vorbis | 67% | 27% |
+
+### False alarms on authentic sources
+
+![False positive rate on genuine FLAC](docs/benchmarks/genuine_false_positive_rate.png)
+
+Lower is better. flaccheck returned `INCONCLUSIVE` on 2 genuine 78&nbsp;rpm masters (narrow bandwidth) instead of flagging them as transcodes.
+
+### Reproduce
+
+```bash
+# 1. Build corpus (needs ffmpeg + source FLACs)
+./datasets/generate_realistic.sh /path/to/sources datasets/output/realistic
+
+# 2. Run tools
+cargo build --release -p flaccheck
+./target/release/flaccheck scan datasets/output/realistic --format json --quiet \
+  -o benchmarks/flaccheck_per_file.json --workers 8
+flac-detective --format json --output benchmarks/flac_detective.json datasets/output/realistic
+
+# 3. Charts + comparison.json
+pip install matplotlib
+python3 scripts/benchmark_compare.py
+```
+
+Raw numbers: [`docs/benchmarks/comparison.json`](docs/benchmarks/comparison.json)
 
 Optional ML refinement for borderline files:
 
@@ -202,7 +238,7 @@ Decode and inspect the spectrum. Lossy transcodes show a sharp **frequency cliff
 
 ### Can flaccheck detect MP3 converted to FLAC?
 
-Yes. MP3 transcodes are the strongest case — spectral brick walls, MDCT residuals, and joint-stereo artifacts are reliably detected (94% recall in our real-music evaluation).
+Yes. MP3 transcodes are the strongest case — **98% recall** in our benchmark corpus (see [Benchmarks](#benchmarks)).
 
 ### Does flaccheck work on Apple Lossless (ALAC) or WAV?
 
