@@ -40,8 +40,8 @@ jobs:
       - name: Test
         run: cargo test --workspace
 
-      - name: Release build
-        run: cargo build --release -p flaccheck
+      - name: Build
+        run: cargo build --workspace
 
   ci-required:
     name: CI Required
