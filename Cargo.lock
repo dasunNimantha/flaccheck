@@ -552,7 +552,7 @@ dependencies = [
  "flaccheck-testkit",
  "flaccheck-web",
  "indicatif",
- "minijinja",
+ "minijinja 3.0.5",
  "rayon",
  "serde",
  "serde_json",
@@ -997,6 +997,12 @@ dependencies = [
  "memo-map",
  "serde",
 ]
+
+[[package]]
+name = "minijinja"
+version = "3.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "00f5a04892e86ddb4fc254e9160835370b63a0d44042d3ab4725bc2dbcbab136"
 
 [[package]]
 name = "miniz_oxide"
@@ -2014,7 +2020,7 @@ dependencies = [
  "half",
  "lazy_static",
  "log",
- "minijinja",
+ "minijinja 2.24.0",
  "num-traits",
  "pastey",
  "scan_fmt",
@@ -2032,7 +2038,7 @@ dependencies = [
  "erased-serde",
  "flate2",
  "log",
- "minijinja",
+ "minijinja 2.24.0",
  "nom",
  "nom-language",
  "safetensors",
