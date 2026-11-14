@@ -29,7 +29,7 @@ symphonia = { version = "0.5", features = [
 rustfft = "6.2"
 realfft = "3.4"
 ndarray = "0.17"
-minijinja = "2.7"
+minijinja = "3.0"
 tract-onnx = "0.23"
 axum = { version = "0.8", features = ["multipart"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "fs"] }
